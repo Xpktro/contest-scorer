@@ -33,21 +33,21 @@ describe('Precalculate', () => {
 
     // Check first day range
     expect(rulesContext.timeRanges.firstDay).toBeDefined()
-    expect(rulesContext.timeRanges.firstDay.start instanceof Date).toBe(true)
-    expect(rulesContext.timeRanges.firstDay.start.toISOString()).toBe(
+    expect(rulesContext.timeRanges.firstDay?.start instanceof Date).toBe(true)
+    expect(rulesContext.timeRanges.firstDay?.start.toISOString()).toBe(
       '2024-12-01T00:00:00.000Z'
     )
-    expect(rulesContext.timeRanges.firstDay.end.toISOString()).toBe(
+    expect(rulesContext.timeRanges.firstDay?.end.toISOString()).toBe(
       '2024-12-15T23:59:59.000Z'
     )
 
     // Check second day range
     expect(rulesContext.timeRanges.secondDay).toBeDefined()
-    expect(rulesContext.timeRanges.secondDay.start instanceof Date).toBe(true)
-    expect(rulesContext.timeRanges.secondDay.start.toISOString()).toBe(
+    expect(rulesContext.timeRanges.secondDay?.start instanceof Date).toBe(true)
+    expect(rulesContext.timeRanges.secondDay?.start.toISOString()).toBe(
       '2024-12-16T00:00:00.000Z'
     )
-    expect(rulesContext.timeRanges.secondDay.end.toISOString()).toBe(
+    expect(rulesContext.timeRanges.secondDay?.end.toISOString()).toBe(
       '2024-12-31T23:59:59.000Z'
     )
   })
