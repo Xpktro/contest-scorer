@@ -1,0 +1,28 @@
+{
+  "name": "contest-scorer",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "prettier": "^3.5.3"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "adif-parser-ts": "^0.6.22",
+    "commander": "^11.1.0"
+  },
+  "scripts": {
+    "start": "bun run src/cli/index.ts",
+    "build": "bun build src/index.ts --outdir dist",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "test": "bun test",
+    "test:unit": "bun test test/unit",
+    "test:e2e": "bun test test/e2e"
+  },
+  "bin": {
+    "contest-scorer": "./src/cli/index.ts"
+  }
+}
