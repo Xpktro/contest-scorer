@@ -7,8 +7,6 @@ A ham radio contest scoring tool built with Bun and TypeScript. This tool reads 
 - Score ham radio contests using ADIF files
 - Configurable validation, scoring, bonus, and tiebreaker rules
 - Command-line interface with colored output
-- CSV export of results
-- Functional programming approach
 
 ## Requirements
 
@@ -34,13 +32,13 @@ bun run build
 
 ```bash
 # Basic usage
-bun run src/cli/index.ts score --input ./logs --rules ./rules.json
+bun start score --input ./logs
 
 # With custom output file
-bun run src/cli/index.ts score --input ./logs --rules ./rules.json --output ./results/contest-results.csv
+bun start score --input ./logs --rules rules.json --output ./results/contest-results.csv
 
 # Display help
-bun run src/cli/index.ts score --help
+bun start help
 ```
 
 ### Using as a Library
@@ -87,6 +85,7 @@ Contest rules are defined in a JSON file with the following structure:
   "start": "2025-01-01T00:00:00Z",
   "end": "2025-01-01T00:59:59Z",
   "blacklist": ["callsign1", "callsign2"],
+  "allowMissingParticipants": true,
   "rules": {
     "validation": [
       "rule1",
@@ -115,6 +114,7 @@ Contest rules are defined in a JSON file with the following structure:
 #### Top-level Validation Rules
 
 - `blacklist`: Excludes specific callsigns from receiving or awarding points and from appearing in the final rankings. Format: `["callsign1", "callsign2"]`
+- `allowMissingParticipants`: Controls whether contacts with stations that did not submit a log should be validated and their contacts scored. When true, contacts with missing participants are accepted and scored. When false or not defined, contacts with missing participants are rejected. Format: `true/false`
 
 ### Scoring Rules
 
