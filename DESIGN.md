@@ -24,6 +24,7 @@ If present in the configuration file, the following rules will be applied, which
 - Special rules (after the initial validation):
   - 'minimumContacts': Contacts can only be valid if the participant has appeared in the contest at least a given number of times. Params: 5
   - 'blacklist': (Defined one level over the rule set). Exclude specific callsigns from receiving or awarding points and from appearing in the final ranking. Params: ['callsign1', 'callsign2']
+  - 'allowMissingParticipants': (Defined one level over the rule set). Controls whether contacts with stations that did not submit a log should be validated and scored. When true, contacts with missing participants are accepted and scored. When false (or not specified), contacts with missing participants are rejected. Params: true/false
 
 2. Each valid contact should be scored based on the rules.
 
@@ -54,6 +55,7 @@ All of the rules for validation must be indicated in the rules file. The rules f
   "name": "contest_name",
   "start": "2025-01-01T00:00:00Z",
   "end": "2025-01-01T00:59:59Z",
+  "allowMissingParticipants": true,
   "rules": {
     "validation": [
       "rule1",
