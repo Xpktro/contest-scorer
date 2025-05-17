@@ -19,24 +19,13 @@ export const applyBonusRules = (
   }
 
   return Array.from(scoredContacts.entries()).map(([callsign, contacts]) => {
-    const finalScore = contacts.reduce((sum, contact) => {
-      // Apply each bonus rule to the contact sequentially, passing forward the updated contact
-      const contactWithFinalScore = rules.rules.bonus.reduce(
-        (updatedContact, rule) => {
-          const [ruleName, params] = Array.isArray(rule)
-            ? rule
-            : [rule, undefined]
+    const baseScore = contacts.reduce((sum, contact) => sum + contact.score, 0)
 
-          return {
-            ...contact,
-            score: bonusers[ruleName](updatedContact, context, params),
-          }
-        },
-        { ...contact }
-      )
+    const finalScore = rules.rules.bonus.reduce((currentScore, rule) => {
+      const [ruleName, params] = Array.isArray(rule) ? rule : [rule, undefined]
 
-      return sum + contactWithFinalScore.score
-    }, 0)
+      return bonusers[ruleName](currentScore, context, params)
+    }, baseScore)
 
     return [callsign, finalScore]
   })

@@ -1,10 +1,10 @@
-import type { ValidContact, ScoringContext, BonusRule } from 'lib/types'
+import type { ScoringContext, BonusRule } from 'lib/types'
 
 export const defaultBonus = (
-  contact: ValidContact,
+  score: number,
   _: ScoringContext,
   multiplier: number = 1
-): number => contact.score * multiplier
+): number => score * multiplier
 
 export const bonusers: Record<BonusRule, any> = {
   default: defaultBonus,
