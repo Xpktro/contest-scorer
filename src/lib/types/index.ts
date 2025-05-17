@@ -59,6 +59,7 @@ export interface ContestRules {
   start: string
   end: string
   blacklist?: Callsign[]
+  allowMissingParticipants?: boolean
   rules: {
     validation: ValidationRuleConfig[]
     scoring: ScoringRuleConfig[]
