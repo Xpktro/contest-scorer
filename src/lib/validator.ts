@@ -83,7 +83,8 @@ export const validateContacts = (
     minimumContactsRule && Array.isArray(minimumContactsRule)
       ? minimumContactsValidator(
           contactsAfterDefaultValidation,
-          minimumContactsRule[1] as number
+          minimumContactsRule[1] as number,
+          rulesContext
         )
       : contactsAfterDefaultValidation
 
@@ -109,6 +110,17 @@ const applyDefaultValidation = (
     const validatedContacts = contacts.filter(contact => {
       if (context.blacklistedCallsigns?.has(contact.contactedCallsign))
         return false
+
+      const isMissingParticipant = !context.participantCallsigns.has(
+        contact.contactedCallsign
+      )
+
+      // Depending on allowMissingParticipants flag:
+      // If true, skip default validator and validate this contact
+      // If false, exclude the contact altogether
+      if (isMissingParticipant) {
+        return !!context.contestRules.allowMissingParticipants
+      }
 
       return defaultValidator(callsign, contact, context.contactIndex, params)
     })
