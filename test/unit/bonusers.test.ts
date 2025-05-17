@@ -153,24 +153,28 @@ describe('Bonusers', () => {
     const contact = validContacts.get('OA4T')![0] // 1 point
 
     // Test with default parameter (1)
-    const defaultMultiplier = bonusers.default(contact, scoringContext)
+    const defaultMultiplier = bonusers.default(contact?.score, scoringContext)
     expect(defaultMultiplier).toBe(1) // 1 * 1 = 1
 
     // Test with custom multiplier (1.5)
-    const customMultiplier = bonusers.default(contact, scoringContext, 1.5)
+    const customMultiplier = bonusers.default(
+      contact?.score,
+      scoringContext,
+      1.5
+    )
     expect(customMultiplier).toBe(1.5) // 1 * 1.5 = 1.5
 
     // Test with higher-scored contact
     const higherScoredContact = validContacts.get('OA4T')![2] // 3 points
     const higherMultiplier = bonusers.default(
-      higherScoredContact,
+      higherScoredContact?.score,
       scoringContext,
       2
     )
     expect(higherMultiplier).toBe(6) // 3 * 2 = 6
 
     // Test with zero multiplier
-    const zeroMultiplier = bonusers.default(contact, scoringContext, 0)
+    const zeroMultiplier = bonusers.default(contact?.score, scoringContext, 0)
     expect(zeroMultiplier).toBe(0) // 1 * 0 = 0
   })
 
