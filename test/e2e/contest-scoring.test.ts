@@ -298,7 +298,7 @@ describe('Contest Scoring E2E', () => {
     // OA4Z appears in 0 logs (0 appearances) - should be excluded
     // OA4X appears in OA4T and OA4P logs (2 appearances) - missing submission so should be excluded from results
 
-    // Check that only OA4T and OA4X are included
+    // Check that only OA4T is included
     expect(results.length).toBe(1)
 
     const includedCallsigns = results.map(result => result[0])
