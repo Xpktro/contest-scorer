@@ -882,21 +882,67 @@ describe('Validators', () => {
       validContactsMap.set('OA4P', validContactsOA4P)
       validContactsMap.set('OA4EFJ', validContactsOA4EFJ)
 
-      // With minimum of 1 appearance
-      const result1 = minimumContactsValidator(validContactsMap, 1)
+      // Create a mock RulesContext with allowMissingParticipants=true
+      const mockRulesContext = {
+        contestRules: {
+          name: 'Test Contest',
+          start: '2024-12-01T00:00:00Z',
+          end: '2024-12-31T23:59:59Z',
+          allowMissingParticipants: true,
+          rules: {
+            validation: [],
+            scoring: [],
+            bonus: [],
+            tiebreaker: [],
+          },
+        },
+        contestStart: new Date('2024-12-01T00:00:00Z'),
+        contestEnd: new Date('2024-12-31T23:59:59Z'),
+        timeRanges: {},
+        bandRanges: [],
+      }
+
+      // With minimum of 1 appearance and allowMissingParticipants=true
+      const result1 = minimumContactsValidator(
+        validContactsMap,
+        1,
+        mockRulesContext
+      )
       expect(result1.has('OA4T')).toBe(true)
       expect(result1.has('OA4P')).toBe(true)
       expect(result1.has('OA4EFJ')).toBe(true)
       expect(result1.has('OA4ABC')).toBe(true) // Should be added as a missing participant
       expect(result1.get('OA4ABC')?.length).toBe(0) // Missing participant should have empty contacts
 
-      // With minimum of 2 appearances
-      const result2 = minimumContactsValidator(validContactsMap, 2)
+      // With minimum of 2 appearances and allowMissingParticipants=true
+      const result2 = minimumContactsValidator(
+        validContactsMap,
+        2,
+        mockRulesContext
+      )
       expect(result2.has('OA4T')).toBe(true) // Appears in OA4P and OA4EFJ logs
       expect(result2.has('OA4P')).toBe(true) // Appears in OA4T and OA4EFJ logs
       expect(result2.has('OA4EFJ')).toBe(false) // Only appears once as a contacted station
       expect(result2.has('OA4ABC')).toBe(true) // Appears in OA4P and OA4EFJ logs
       expect(result2.get('OA4ABC')?.length).toBe(0) // Missing participant should have empty contacts
+
+      // With minimum of 2 appearances but allowMissingParticipants=false
+      const mockRulesContextDisallowMissing = {
+        ...mockRulesContext,
+        contestRules: {
+          ...mockRulesContext.contestRules,
+          allowMissingParticipants: false,
+        },
+      }
+      const resultNoMissing = minimumContactsValidator(
+        validContactsMap,
+        2,
+        mockRulesContextDisallowMissing
+      )
+      expect(resultNoMissing.has('OA4T')).toBe(true) // Appears in OA4P and OA4EFJ logs
+      expect(resultNoMissing.has('OA4P')).toBe(true) // Appears in OA4T and OA4EFJ logs
+      expect(resultNoMissing.has('OA4EFJ')).toBe(false) // Only appears once
+      expect(resultNoMissing.has('OA4ABC')).toBe(false) // Should not be added as missing participants aren't allowed
 
       // With minimum of 3 appearances
       const result3 = minimumContactsValidator(validContactsMap, 3)
