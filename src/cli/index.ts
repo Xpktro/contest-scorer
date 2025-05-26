@@ -165,7 +165,7 @@ program
 
       // Score the contest
       console.log(`${colors.magenta}Scoring contest...${colors.reset}`)
-      const results = scoreContest(submissions, rules)
+      const scoredContest = scoreContest(submissions, rules)
 
       // Create output directory if it doesn't exist
       const outputDir =
@@ -176,7 +176,7 @@ program
 
       // Write results to CSV
       let csv = 'Rank,Callsign,Score\n'
-      results.forEach(([callsign, score], index) => {
+      scoredContest.results.forEach(([callsign, score], index) => {
         csv += `${index + 1},${callsign},${score}\n`
       })
 
@@ -187,12 +187,18 @@ program
         `${colors.green}Results written to ${csvFilePath}${colors.reset}`
       )
 
+      const jsonFilePath = csvFilePath.replace(/\.csv$/, '.json')
+      writeFileSync(jsonFilePath, JSON.stringify(scoredContest, null, 2))
+      console.log(
+        `${colors.green}Detailed results written to ${jsonFilePath}${colors.reset}`
+      )
+
       // Display results in console with pretty formatting
       console.log('\n' + colors.bold + colors.green + 'Results:' + colors.reset)
       console.log(colors.bold + 'Rank | Callsign | Score' + colors.reset)
       console.log('-'.repeat(25))
 
-      results.forEach(([callsign, score], index) => {
+      scoredContest.results.forEach(([callsign, score], index) => {
         const rank = (index + 1).toString().padEnd(4)
         console.log(
           `${colors.cyan}${rank}${colors.reset} | ${colors.magenta}${callsign.padEnd(8)}${colors.reset} | ${colors.green}${score}${colors.reset}`

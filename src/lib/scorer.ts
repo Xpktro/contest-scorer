@@ -3,12 +3,14 @@ import type {
   ValidContact,
   ScoringContext,
   RulesContext,
+  ParticipantScoringDetail,
 } from 'types'
 import { scorers } from 'lib/rules/scorers'
 
 export const scoreContacts = (
   validContacts: Map<Callsign, ValidContact[]>,
-  rulesContext: RulesContext
+  rulesContext: RulesContext,
+  scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>
 ): Map<Callsign, ValidContact[]> => {
   const context: ScoringContext = {
     validContacts,
@@ -31,9 +33,21 @@ export const scoreContacts = (
                   : [rule, undefined]
 
                 // Apply the rule and return a new contact object with the updated score
+                const score = scorers[ruleName](scoredContact, context, params)
+
+                if (scoredContact.score !== score) {
+                  scoringDetails[callsign]!.contacts![
+                    scoredContact.scoringDetailsIndex
+                  ]!.scoreRule = ruleName
+
+                  scoringDetails[callsign]!.contacts![
+                    scoredContact.scoringDetailsIndex
+                  ]!.givenScore = score
+                }
+
                 return {
                   ...scoredContact,
-                  score: scorers[ruleName](scoredContact, context, params),
+                  score,
                 }
               },
               { ...contact, score: 0 }

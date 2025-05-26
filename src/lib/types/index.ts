@@ -83,11 +83,14 @@ export interface ValidContact {
     srxString: string
   }
   score: number
+  scoringDetailsIndex: number
 }
+
+type ValidContacts = Map<Callsign, ValidContact[]>
 
 export interface ValidationContext {
   submissions: Participant[]
-  validContacts: Map<Callsign, ValidContact[]>
+  validContacts: ValidContacts
   contestRules: ContestRules
   participantCallsigns?: Set<Callsign>
   timeRanges: Record<string, { start: Date; end: Date }>
@@ -99,7 +102,7 @@ export interface ValidationContext {
 }
 
 export interface ScoringContext {
-  validContacts: Map<Callsign, ValidContact[]>
+  validContacts: ValidContacts
   timeRanges: Record<string, { start: Date; end: Date }>
 }
 
@@ -113,3 +116,37 @@ export interface RulesContext {
 
 export type Participant = [Callsign, SimpleAdif['records']]
 export type ScoringResult = [Callsign, number]
+
+export type ContactScoringDetail = NonNullable<
+  SimpleAdif['records']
+>[number] & {
+  invalidRule: ValidationRule | null
+  scoreRule: ScoringRule | null
+  givenScore: number
+}
+
+export interface ParticipantScoringDetail {
+  bonusRuleApplied: BonusRule | null
+  givenBonus: number
+  contacts: ContactScoringDetail[]
+  hasMinimumAppearances: boolean
+}
+
+export interface ContestResult {
+  results: ScoringResult[]
+  scoringDetails: Record<Callsign, ParticipantScoringDetail>
+  missingParticipants: Callsign[]
+  blacklistedCallsignsFound: Callsign[]
+}
+
+type ContactValidatorResult = {
+  validContacts: ValidContacts
+  scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>
+  missingParticipants: Set<Callsign>
+  blacklistedCallsignsFound: Set<Callsign>
+}
+
+export type ContactValidator = (
+  submissions: Participant[],
+  rulesContext: RulesContext
+) => ContactValidatorResult

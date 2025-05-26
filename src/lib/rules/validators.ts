@@ -5,6 +5,7 @@ import type {
   ContactIndex,
   Validator,
   RulesContext,
+  ParticipantScoringDetail,
 } from 'types'
 import {
   getDateTimeFromContact,
@@ -167,7 +168,8 @@ export const exchangeValidator: Validator<string> = (
 export const minimumContactsValidator = (
   validContactsMap: Map<Callsign, ValidContact[]>,
   minimumAppearances: number,
-  rulesContext?: RulesContext
+  rulesContext: RulesContext,
+  scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>
 ): Map<Callsign, ValidContact[]> => {
   // Count how many times each callsign appears as a contacted station
   const appearanceCounts = new Map<Callsign, number>()
@@ -178,10 +180,12 @@ export const minimumContactsValidator = (
   for (const contacts of validContactsMap.values()) {
     for (const contact of contacts) {
       const contactedCallsign = contact.contactedCallsign
-      appearanceCounts.set(
-        contactedCallsign,
-        (appearanceCounts.get(contactedCallsign) || 0) + 1
-      )
+      const appearances = (appearanceCounts.get(contactedCallsign) || 0) + 1
+      appearanceCounts.set(contactedCallsign, appearances)
+
+      // TODO: Check if this works
+      scoringDetails[contactedCallsign]!.hasMinimumAppearances =
+        appearances >= minimumAppearances
 
       // If a station was contacted but didn't submit a log, it's a "missing participant"
       if (

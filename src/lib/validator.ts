@@ -9,6 +9,9 @@ import type {
   ContactIndex,
   RulesContext,
   DefaultValidatorParams,
+  ContactValidator,
+  ContactScoringDetail,
+  ParticipantScoringDetail,
 } from 'types'
 import {
   defaultValidator,
@@ -22,13 +25,16 @@ const RULES_TO_SKIP_DURING_INITIAL_VALIDATION: ValidationRule[] = [
   'default',
 ] as const
 
-export const validateContacts = (
-  submissions: Participant[],
-  rulesContext: RulesContext
-): Map<Callsign, ValidContact[]> => {
+export const validateContacts: ContactValidator = (
+  submissions,
+  rulesContext
+) => {
   const contestRules = rulesContext.contestRules
 
   const blacklistedCallsigns = new Set(contestRules.blacklist || [])
+  const blacklistedCallsignsFound = new Set<Callsign>()
+  const scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>> = {}
+  const missingParticipants = new Set<Callsign>()
 
   // Create a Set of participant callsigns for efficient lookups
   const participantCallsigns = submissions.reduce(
@@ -54,12 +60,14 @@ export const validateContacts = (
   })
 
   // Validate with basic rules to establish initial valid contacts
-  const initialValidContacts = runValidation(
+  const initialValidContacts = applyInitialValidation(
     submissions,
     rulesContext,
     initialValidationRules,
     participantCallsigns,
-    blacklistedCallsigns
+    blacklistedCallsigns,
+    blacklistedCallsignsFound,
+    scoringDetails
   )
 
   const contactIndex = createContactIndex(initialValidContacts)
@@ -72,6 +80,9 @@ export const validateContacts = (
           participantCallsigns,
           contactIndex,
           blacklistedCallsigns,
+          blacklistedCallsignsFound,
+          scoringDetails,
+          missingParticipants,
         },
         Array.isArray(defaultRuleConfig) && defaultRuleConfig.length > 1
           ? (defaultRuleConfig[1] as DefaultValidatorParams)
@@ -79,16 +90,22 @@ export const validateContacts = (
       )
     : initialValidContacts
 
-  const finalContacts =
+  const validContacts =
     minimumContactsRule && Array.isArray(minimumContactsRule)
       ? minimumContactsValidator(
           contactsAfterDefaultValidation,
           minimumContactsRule[1] as number,
-          rulesContext
+          rulesContext,
+          scoringDetails
         )
       : contactsAfterDefaultValidation
 
-  return finalContacts
+  return {
+    validContacts,
+    scoringDetails,
+    missingParticipants,
+    blacklistedCallsignsFound,
+  }
 }
 
 const applyDefaultValidation = (
@@ -98,18 +115,26 @@ const applyDefaultValidation = (
     contestRules: ContestRules
     participantCallsigns: Set<Callsign>
     contactIndex: ContactIndex
-    blacklistedCallsigns?: Set<Callsign>
+    blacklistedCallsigns: Set<Callsign>
+    blacklistedCallsignsFound: Set<Callsign>
+    scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>
+    missingParticipants: Set<Callsign>
   },
   params?: DefaultValidatorParams
 ): Map<Callsign, ValidContact[]> => {
   const result = new Map<Callsign, ValidContact[]>()
 
   for (const [callsign, contacts] of validContacts.entries()) {
-    if (context.blacklistedCallsigns?.has(callsign)) continue
+    if (context.blacklistedCallsigns?.has(callsign)) {
+      context.blacklistedCallsignsFound?.add(callsign)
+      continue
+    }
 
     const validatedContacts = contacts.filter(contact => {
-      if (context.blacklistedCallsigns?.has(contact.contactedCallsign))
+      if (context.blacklistedCallsigns?.has(contact.contactedCallsign)) {
+        context.blacklistedCallsignsFound?.add(callsign)
         return false
+      }
 
       const isMissingParticipant = !context.participantCallsigns.has(
         contact.contactedCallsign
@@ -119,10 +144,24 @@ const applyDefaultValidation = (
       // If true, skip default validator and validate this contact
       // If false, exclude the contact altogether
       if (isMissingParticipant) {
+        context.missingParticipants.add(contact.contactedCallsign)
         return !!context.contestRules.allowMissingParticipants
       }
 
-      return defaultValidator(callsign, contact, context.contactIndex, params)
+      const isValid = defaultValidator(
+        callsign,
+        contact,
+        context.contactIndex,
+        params
+      )
+
+      if (!isValid) {
+        context.scoringDetails[callsign]!.contacts![
+          contact.scoringDetailsIndex
+        ]!.invalidRule = 'default'
+      }
+
+      return isValid
     })
 
     result.set(callsign, validatedContacts)
@@ -164,12 +203,14 @@ const createContactIndex = (
   return index
 }
 
-const runValidation = (
+const applyInitialValidation = (
   submissions: Participant[],
   rulesContext: RulesContext,
   validationRules: ValidationRuleConfig[],
   participantCallsigns: Set<Callsign>,
-  blacklistedCallsigns?: Set<Callsign>
+  blacklistedCallsigns: Set<Callsign>,
+  blacklistedCallsignsFound: Set<Callsign>,
+  scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>
 ): Map<Callsign, ValidContact[]> => {
   const validContacts = new Map<Callsign, ValidContact[]>()
 
@@ -186,20 +227,52 @@ const runValidation = (
   }
 
   for (const [callsign, contacts] of submissions) {
-    if (blacklistedCallsigns && blacklistedCallsigns.has(callsign)) continue
+    if (blacklistedCallsigns.has(callsign)) {
+      blacklistedCallsignsFound?.add(callsign)
+      continue
+    }
+
+    scoringDetails[callsign] = {
+      ...scoringDetails[callsign],
+      contacts: scoringDetails[callsign]?.contacts || [],
+    }
 
     const validContactsForCallsign: ValidContact[] = []
 
     for (const contact of contacts || []) {
       const contactedCallsign = String(contact.call || '')
-      if (blacklistedCallsigns && blacklistedCallsigns.has(contactedCallsign))
+      const currentContactDetails = {
+        ...contact,
+        invalidRule: null,
+      } as ContactScoringDetail
+
+      if (blacklistedCallsigns.has(contactedCallsign)) {
+        blacklistedCallsignsFound?.add(contactedCallsign)
         continue
+      }
 
       const isValid = validationRules.every(rule => {
         const [ruleName, params] =
           typeof rule === 'string' ? [rule, undefined] : rule
-        return validators[ruleName](callsign, contact, context, params)
+        const passesValidation = validators[ruleName](
+          callsign,
+          contact,
+          context,
+          params
+        )
+
+        if (!passesValidation) {
+          currentContactDetails.invalidRule = ruleName
+          currentContactDetails.givenScore = 0
+          currentContactDetails.scoreRule = null
+        }
+
+        return passesValidation
       })
+
+      scoringDetails[callsign].contacts = scoringDetails[
+        callsign
+      ].contacts!.concat(currentContactDetails)
 
       if (!isValid) continue
 
@@ -242,6 +315,7 @@ const runValidation = (
         mode: String(contact.mode || ''),
         exchanges,
         score: 0,
+        scoringDetailsIndex: scoringDetails[callsign].contacts!.length - 1,
       }
 
       validContactsForCallsign.push(validContact)

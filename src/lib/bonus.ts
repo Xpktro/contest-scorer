@@ -5,13 +5,15 @@ import type {
   ScoringContext,
   ScoringResult,
   RulesContext,
+  ParticipantScoringDetail,
 } from './types'
 import { bonusers } from './rules/bonusers'
 
 export const applyBonusRules = (
   scoredContacts: Map<Callsign, ValidContact[]>,
   rules: ContestRules,
-  rulesContext: RulesContext
+  rulesContext: RulesContext,
+  scoringDetails: Record<string, Partial<ParticipantScoringDetail>>
 ): ScoringResult[] => {
   const context: ScoringContext = {
     validContacts: scoredContacts,
@@ -21,10 +23,20 @@ export const applyBonusRules = (
   return Array.from(scoredContacts.entries()).map(([callsign, contacts]) => {
     const baseScore = contacts.reduce((sum, contact) => sum + contact.score, 0)
 
+    scoringDetails[callsign]!.bonusRuleApplied = null
+    scoringDetails[callsign]!.givenBonus = 0
+
     const finalScore = rules.rules.bonus.reduce((currentScore, rule) => {
       const [ruleName, params] = Array.isArray(rule) ? rule : [rule, undefined]
 
-      return bonusers[ruleName](currentScore, context, params)
+      const score = bonusers[ruleName](currentScore, context, params)
+
+      if (score !== currentScore) {
+        scoringDetails[callsign]!.bonusRuleApplied = ruleName
+        scoringDetails[callsign]!.givenBonus = score - currentScore
+      }
+
+      return score
     }, baseScore)
 
     return [callsign, finalScore]

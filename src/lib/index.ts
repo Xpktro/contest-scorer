@@ -1,4 +1,9 @@
-import type { Participant, ScoringResult, ContestRules } from 'types'
+import type {
+  Participant,
+  ContestResult,
+  ContestRules,
+  ScoringResult,
+} from 'types'
 import { scoreContacts } from 'lib/scorer'
 import { validateContacts } from 'lib/validator'
 import { applyBonusRules } from 'lib/bonus'
@@ -8,12 +13,28 @@ import { getRulesContext } from './precalculate'
 export const scoreContest = (
   submissions: Participant[],
   rules: ContestRules
-): ScoringResult[] => {
+): ContestResult => {
   const rulesContext = getRulesContext(rules)
 
-  const validContacts = validateContacts(submissions, rulesContext)
-  const scoredContacts = scoreContacts(validContacts, rulesContext)
-  const results = applyBonusRules(scoredContacts, rules, rulesContext)
+  const {
+    validContacts,
+    scoringDetails,
+    missingParticipants,
+    blacklistedCallsignsFound,
+  } = validateContacts(submissions, rulesContext)
+
+  const scoredContacts = scoreContacts(
+    validContacts,
+    rulesContext,
+    scoringDetails
+  )
+
+  const results = applyBonusRules(
+    scoredContacts,
+    rules,
+    rulesContext,
+    scoringDetails
+  )
 
   // Filter out missing participants (those with empty contact arrays)
   // Missing participants award points but don't appear in rankings
@@ -25,7 +46,19 @@ export const scoreContest = (
   const sortedResults = filteredResults.sort(
     (a: ScoringResult, b: ScoringResult) => b[1] - a[1]
   )
-  return applyTiebreakers(sortedResults, scoredContacts, rules)
+
+  const tiebreakerResults = applyTiebreakers(
+    sortedResults,
+    scoredContacts,
+    rules
+  )
+
+  return {
+    results: tiebreakerResults,
+    scoringDetails,
+    missingParticipants: Array.from(missingParticipants),
+    blacklistedCallsignsFound: Array.from(blacklistedCallsignsFound),
+  } as ContestResult
 }
 
 export * from 'lib/scorer'
