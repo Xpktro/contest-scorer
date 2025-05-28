@@ -1,7 +1,11 @@
 {
   "name": "contest-scorer",
+  "version": "0.1.0",
+  "author": "Moisés Cachay - OA4EFJ <hello@moises.dev>",
+  "license": "MIT",
   "module": "src/index.ts",
   "type": "module",
+  "description": "A CLI tool for scoring ham radio contests based on ADIF logs.",
   "private": true,
   "devDependencies": {
     "@types/bun": "latest",
@@ -12,6 +16,7 @@
   },
   "dependencies": {
     "adif-parser-ts": "^0.6.22",
+    "ascii-table3": "^0.9.0",
     "commander": "^11.1.0"
   },
   "scripts": {
