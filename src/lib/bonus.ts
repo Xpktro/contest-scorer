@@ -23,15 +23,17 @@ export const applyBonusRules = (
   return Array.from(scoredContacts.entries()).map(([callsign, contacts]) => {
     const baseScore = contacts.reduce((sum, contact) => sum + contact.score, 0)
 
-    scoringDetails[callsign]!.bonusRuleApplied = null
-    scoringDetails[callsign]!.givenBonus = 0
+    if (callsign in scoringDetails) {
+      scoringDetails[callsign]!.bonusRuleApplied = null
+      scoringDetails[callsign]!.givenBonus = 0
+    }
 
     const finalScore = rules.rules.bonus.reduce((currentScore, rule) => {
       const [ruleName, params] = Array.isArray(rule) ? rule : [rule, undefined]
 
       const score = bonusers[ruleName](currentScore, context, params)
 
-      if (score !== currentScore) {
+      if (callsign in scoringDetails && score !== currentScore) {
         scoringDetails[callsign]!.bonusRuleApplied = ruleName
         scoringDetails[callsign]!.givenBonus = score - currentScore
       }
