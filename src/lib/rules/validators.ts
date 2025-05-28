@@ -169,11 +169,11 @@ export const minimumContactsValidator = (
   validContactsMap: Map<Callsign, ValidContact[]>,
   minimumAppearances: number,
   rulesContext: RulesContext,
-  scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>
-): Map<Callsign, ValidContact[]> => {
+  scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>,
+  missingParticipants: Set<Callsign>
+): Map<Callsign, ValidContact[] | null> => {
   // Count how many times each callsign appears as a contacted station
   const appearanceCounts = new Map<Callsign, number>()
-  const missingParticipants = new Set<Callsign>()
   const allowMissingParticipants =
     !!rulesContext?.contestRules?.allowMissingParticipants
 
@@ -183,11 +183,12 @@ export const minimumContactsValidator = (
       const appearances = (appearanceCounts.get(contactedCallsign) || 0) + 1
       appearanceCounts.set(contactedCallsign, appearances)
 
-      // TODO: Check if this works
-      scoringDetails[contactedCallsign]!.hasMinimumAppearances =
-        appearances >= minimumAppearances
+      if (contactedCallsign in scoringDetails) {
+        scoringDetails[contactedCallsign]!.hasMinimumAppearances =
+          appearances >= minimumAppearances
+      }
 
-      // If a station was contacted but didn't submit a log, it's a "missing participant"
+      // Track missing participants - stations that were contacted but didn't submit logs
       if (
         allowMissingParticipants &&
         !validContactsMap.has(contactedCallsign)
@@ -197,7 +198,7 @@ export const minimumContactsValidator = (
     }
   }
 
-  const missingParticipantsResult: [Callsign, ValidContact[]][] = []
+  const missingParticipantsResult: [Callsign, ValidContact[] | null][] = []
   if (allowMissingParticipants) {
     // For stations that meet the minimum appearances threshold but didn't submit logs,
     // create "virtual" placeholder entries so they can award points but don't score themselves
@@ -207,15 +208,15 @@ export const minimumContactsValidator = (
         appearances >= minimumAppearances &&
         !validContactsMap.has(missingCallsign)
       ) {
-        // Add an empty entry for missing participants who meet the threshold
-        missingParticipantsResult.push([missingCallsign, []])
+        // Add an null entry for missing participants who meet the threshold
+        missingParticipantsResult.push([missingCallsign, null])
       }
     }
   }
 
   // Filter out participants who don't appear in enough logs
   return new Map(
-    Array.from(validContactsMap)
+    Array.from<[string, ValidContact[] | null]>(validContactsMap)
       .filter(
         ([callsign]) =>
           (appearanceCounts.get(callsign) || 0) >= minimumAppearances
