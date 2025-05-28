@@ -132,6 +132,69 @@ Contest rules are defined in a JSON file with the following structure:
 - `validStations`: Breaks ties by the number of valid stations contacted (more is better).
 - `minimumTime`: Breaks ties by the time span between first and last contact (less is better).
 
+### Output Format
+
+The scoring engine returns a structured `ContestResult` object with detailed information:
+
+```typescript
+interface ContestResult {
+  // Array of [callsign, score] tuples sorted by score
+  results: [string, number][]
+
+  // Detailed scoring information for each participant
+  scoringDetails: {
+    [callsign: string]: {
+      bonusRuleApplied: string | null // Name of the bonus rule applied
+      givenBonus: number // Bonus points given
+      hasMinimumAppearances: boolean // Whether station met minimum appearances
+      contacts: {
+        // Original ADIF fields plus:
+        invalidValidationRule: string | null // Name of violated rule or null if valid
+        scoreRule: string | null // Name of the rule used to calculate score
+        givenScore: number // Score given for this contact
+      }[]
+    }
+  }
+
+  // Array of callsigns that didn't submit logs but appeared in other logs
+  missingParticipants: string[]
+
+  // Array of blacklisted callsigns that were found in contacts
+  blacklistedCallsignsFound: string[]
+}
+```
+
+The `missingParticipants` array will contain all stations that were contacted but didn't submit logs, as long as `allowMissingParticipants` is set to `true`. These stations won't appear in the `results` array but they will award points if they meet the minimum appearance treshold with `minimumContacts` if defined.
+
+The CSV output contains only the callsign and total score, while the JSON output contains the full detailed result object.
+
+## Important Notes and Caveats
+
+### Missing Participants Behavior
+
+- Missing participants (stations that were contacted but didn't submit logs) are always tracked in the output, regardless of whether `allowMissingParticipants` is true or false.
+- When `allowMissingParticipants` is false, contacts with missing participants are still tracked but don't award points.
+- If you're using the `minimumContacts` rule, missing participants must appear in at least that many logs to be eligible for awarding points to others.
+
+### Score Calculation
+
+- The scoring process applies all scoring rules in sequence, with each rule potentially overriding the previous score.
+- The final score is calculated as: sum of all valid contact scores × bonus multiplier.
+- The `scoreRule` field in the detailed output shows which rule was responsible for the final score of each contact.
+
+### Handling Edge Cases
+
+- Duplicate contacts (same callsign, band, and mode within a time range) are automatically rejected.
+- Time differences between logs are handled with the `maximumTimeDiff` parameter (default: 2 minutes).
+- Frequency differences are handled with the `maximumFrequencyDiff` parameter (default: 2 kHz).
+- For cross-mode contacts (e.g., SSB/CW), both modes must be in the allowed modes list.
+
+### Data Requirements
+
+- For best results, ensure all ADIF files include accurate timestamps, frequencies, and modes.
+- RST and exchange fields are validated if present but are not required by default.
+- Missing or incomplete logs will affect overall contest scoring accuracy.
+
 ## ADIF Files
 
 The tool expects ADIF files named with the participant's callsign (e.g., `OA4T.adi`). If the callsign cannot be determined from the filename, the contest cannot be properly scored.

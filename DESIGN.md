@@ -71,7 +71,55 @@ All of the rules for validation must be indicated in the rules file. The rules f
 }
 ```
 
-The CLI will receive a folder path as an input and will output a CSV file with the results (callsign and score) sorted by score.
+The scoring engine returns a detailed `ContestResult` object with the following structure:
+
+```typescript
+interface ContestResult {
+  // Array of [callsign, score] tuples sorted by score
+  results: [string, number][]
+
+  // Detailed scoring information for each participant
+  scoringDetails: {
+    [callsign: string]: {
+      bonusRuleApplied: string | null // Name of the bonus rule applied
+      givenBonus: number // Bonus points given
+      hasMinimumAppearances: boolean // Whether station met minimum appearances
+      contacts: {
+        // Original ADIF fields plus:
+        invalidValidationRule: string | null // Name of violated rule or null if valid
+        scoreRule: string | null // Name of the rule used to calculate score
+        givenScore: number // Score given for this contact
+      }[]
+    }
+  }
+
+  // Array of callsigns that didn't submit logs but appeared in other logs
+  missingParticipants: string[]
+
+  // Array of blacklisted callsigns that were found in contacts
+  blacklistedCallsignsFound: string[]
+}
+```
+
+Regarding this output structure, here's some details about its fields.
+
+- **results**: The final contest standings as an array of [callsign, score] tuples, sorted by score with tiebreakers applied.
+
+- **scoringDetails**: Contains detailed information about how each participant was scored:
+
+  - **bonusRuleApplied**: The name of the bonus rule that was applied to this participant.
+  - **givenBonus**: The bonus multiplier or points awarded.
+  - **hasMinimumAppearances**: Whether the participant met the minimum appearances threshold if the `minimumContacts` rule was used.
+  - **contacts**: Array of contact details with additional scoring information:
+    - **invalidValidationRule**: If the contact was invalid, this field contains the name of the rule that caused the invalidation.
+    - **scoreRule**: The name of the rule used to calculate the score for this contact.
+    - **givenScore**: The final score awarded for this contact.
+
+- **missingParticipants**: Contains callsigns of stations that were contacted by participants but didn't submit their own logs. If `allowMissingParticipants` is true and they meet the minimum appearance threshold, they'll award points for contacts made with them, but they won't appear in the rankings themselves.
+
+- **blacklistedCallsignsFound**: Contains callsigns from the blacklist that were found in contacts. These stations don't receive or award points.
+
+The CLI will receive a folder path as an input and will output a CSV file with the results (callsign and score) sorted by score. Additionaly, a json file will be generated with the complete scoring and validation details of the contest.
 
 All of the project should be written using a functional programming approach. Alongside to the src folder, a test folder should be present, covering as much of the sources as possible, including unit testing and e2e testing.
 
