@@ -7,6 +7,7 @@ import type { ContestRules, Participant } from 'lib/types'
 import { Command } from 'commander'
 import { scoreContest } from 'index'
 import { formatDateTime } from 'utils'
+import { AsciiTable3, AlignmentEnum } from 'ascii-table3'
 
 // Define CLI colors for better output formatting
 const colors = {
@@ -193,17 +194,114 @@ program
         `${colors.green}Detailed results written to ${jsonFilePath}${colors.reset}`
       )
 
-      // Display results in console with pretty formatting
+      // Display results in console
       console.log('\n' + colors.bold + colors.green + 'Results:' + colors.reset)
-      console.log(colors.bold + 'Rank | Callsign | Score' + colors.reset)
-      console.log('-'.repeat(25))
+
+      const table = new AsciiTable3('Contest Results')
+        .setHeading('Rank', 'Callsign', 'Score')
+        .setAlign(3, AlignmentEnum.RIGHT)
 
       scoredContest.results.forEach(([callsign, score], index) => {
-        const rank = (index + 1).toString().padEnd(4)
-        console.log(
-          `${colors.cyan}${rank}${colors.reset} | ${colors.magenta}${callsign.padEnd(8)}${colors.reset} | ${colors.green}${score}${colors.reset}`
-        )
+        table.addRow(index + 1, callsign, score)
       })
+
+      table.setStyle('unicode-single').setCellMargin(1)
+
+      console.log(table.toString())
+
+      // If verbose mode is enabled, show more details
+      if (options.verbose) {
+        console.log(
+          '\n' +
+            colors.bold +
+            colors.magenta +
+            'Missing Participants:' +
+            colors.reset
+        )
+        if (scoredContest.missingParticipants.length > 0) {
+          const missingTable = new AsciiTable3('Missing Participants')
+            .setHeading('Callsign')
+            .setStyle('unicode-single')
+
+          scoredContest.missingParticipants.forEach(callsign => {
+            missingTable.addRow(callsign)
+          })
+
+          console.log(missingTable.toString())
+        } else {
+          console.log('None')
+        }
+
+        if (scoredContest.blacklistedCallsignsFound.length > 0) {
+          console.log(
+            '\n' +
+              colors.bold +
+              colors.red +
+              'Blacklisted Callsigns Found:' +
+              colors.reset
+          )
+          const blacklistTable = new AsciiTable3('Blacklisted Callsigns')
+            .setHeading('Callsign')
+            .setStyle('unicode-single')
+
+          scoredContest.blacklistedCallsignsFound.forEach(callsign => {
+            blacklistTable.addRow(callsign)
+          })
+
+          console.log(blacklistTable.toString())
+        }
+
+        console.log(
+          '\n' + colors.bold + colors.cyan + 'Detailed Scoring:' + colors.reset
+        )
+
+        for (const [callsign, details] of Object.entries(
+          scoredContest.scoringDetails
+        )) {
+          console.log(
+            `\n${colors.bold}${colors.cyan}${callsign}${colors.reset} - ${colors.bold}Total Score: ${details.contacts.reduce((sum, c) => sum + (c.invalidValidationRule ? 0 : c.givenScore), 0)}${colors.reset}`
+          )
+
+          const detailsTable = new AsciiTable3(`${callsign} Contacts`)
+            .setHeading(
+              'Contacted',
+              'Time',
+              'Band',
+              'Mode',
+              'Valid',
+              'Invalid Validation Rule',
+              'Scoring Rule',
+              'Score'
+            )
+            .setAlign(5, AlignmentEnum.RIGHT)
+            .setStyle('unicode-single')
+
+          details.contacts.forEach(contact => {
+            const isValid = !contact.invalidValidationRule
+            const validText = isValid ? 'Yes' : 'No'
+            const score = isValid ? contact.givenScore : 0
+
+            detailsTable.addRow(
+              contact.call,
+              `${contact.qso_date} ${contact.time_on}`,
+              contact.band || contact.freq,
+              contact.mode,
+              validText,
+              contact.invalidValidationRule || '(none)',
+              contact.scoreRule,
+              score
+            )
+          })
+
+          console.log(detailsTable.toString())
+
+          if (details.givenBonus > 0) {
+            console.log(
+              `${colors.yellow}Bonus Rule Applied: ${details.bonusRuleApplied || 'default'} (Bonus points: ${details.givenBonus})${colors.reset}`
+            )
+          }
+        }
+      }
     } catch (error) {
       console.error(`${colors.red}Error: ${error}${colors.reset}`)
       process.exit(1)
