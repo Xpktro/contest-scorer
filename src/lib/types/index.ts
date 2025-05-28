@@ -86,7 +86,7 @@ export interface ValidContact {
   scoringDetailsIndex: number
 }
 
-type ValidContacts = Map<Callsign, ValidContact[]>
+export type ValidContacts = Map<Callsign, ValidContact[] | null>
 
 export interface ValidationContext {
   submissions: Participant[]
@@ -120,7 +120,7 @@ export type ScoringResult = [Callsign, number]
 export type ContactScoringDetail = NonNullable<
   SimpleAdif['records']
 >[number] & {
-  invalidRule: ValidationRule | null
+  invalidValidationRule: ValidationRule | null
   scoreRule: ScoringRule | null
   givenScore: number
 }
@@ -139,7 +139,7 @@ export interface ContestResult {
   blacklistedCallsignsFound: Callsign[]
 }
 
-type ContactValidatorResult = {
+export type ContactValidatorResult = {
   validContacts: ValidContacts
   scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>
   missingParticipants: Set<Callsign>
