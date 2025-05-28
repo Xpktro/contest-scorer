@@ -1,14 +1,18 @@
 import { describe, test, expect, beforeEach } from 'bun:test'
-import type { SimpleAdif } from 'adif-parser-ts'
 import type {
   ContestRules,
   ScoringContext,
   ValidContact,
   RulesContext,
+  ContestResult,
 } from '../../src/lib/types'
 import { scorers } from 'lib/rules/scorers'
 import { scoreContacts } from 'lib/scorer'
 import { getRulesContext } from 'lib/precalculate'
+import {
+  getScoreForCallsign,
+  getScoringDetailsForCallsign,
+} from '../utils/test-helpers'
 
 describe('Scorers', () => {
   let sampleRules: ContestRules
@@ -67,6 +71,7 @@ describe('Scorers', () => {
           srxString: '456',
         },
         score: 0,
+        scoringDetailsIndex: 0,
       },
       {
         callsign: 'OA4T',
@@ -83,6 +88,7 @@ describe('Scorers', () => {
           srxString: '456',
         },
         score: 0,
+        scoringDetailsIndex: 1,
       },
     ])
 
@@ -102,6 +108,7 @@ describe('Scorers', () => {
           srxString: '456',
         },
         score: 0,
+        scoringDetailsIndex: 0,
       },
     ])
 
@@ -195,6 +202,7 @@ describe('Scorers', () => {
         srxString: '456',
       },
       score: 10, // Pre-existing score
+      scoringDetailsIndex: 0,
     }
 
     const params = { firstDay: 1, secondDay: 2 }
@@ -206,8 +214,28 @@ describe('Scorers', () => {
 
   test('bonusStationsScorer assigns bonus scores for specific callsigns', () => {
     // Setup test contacts
-    const regularContact = validContacts.get('OA4T')![0] // OA4P
+    const testContacts = new Map<string, ValidContact[]>()
 
+    // Create a regular contact with normal participant
+    const regularContact: ValidContact = {
+      callsign: 'OA4T',
+      contactedCallsign: 'OA4P',
+      date: '20241210',
+      time: '130000',
+      freq: '14.000',
+      band: '20m',
+      mode: 'SSB',
+      exchanges: {
+        rstSent: '59',
+        rstRcvd: '59',
+        stxString: '123',
+        srxString: '456',
+      },
+      score: 0,
+      scoringDetailsIndex: 0,
+    }
+
+    // Create bonus station contacts
     const bonusContact: ValidContact = {
       callsign: 'OA4T',
       contactedCallsign: 'OA4O', // Bonus station
@@ -223,6 +251,7 @@ describe('Scorers', () => {
         srxString: '456',
       },
       score: 0,
+      scoringDetailsIndex: 1,
     }
 
     const bonusContact2: ValidContact = {
@@ -240,45 +269,52 @@ describe('Scorers', () => {
         srxString: '456',
       },
       score: 0,
+      scoringDetailsIndex: 2,
     }
 
-    const params = { OA4O: 5, OA4EFJ: 3 }
+    testContacts.set('OA4T', [regularContact, bonusContact, bonusContact2])
 
-    // Test regular contact (should get existing score)
-    const regularScore = scorers.bonusStations(
-      regularContact,
-      scoringContext,
-      params
-    )
-    expect(regularScore).toBe(regularContact?.score)
-
-    // Test bonus station contact (should get 5 points)
-    const bonusScore = scorers.bonusStations(
-      bonusContact,
-      scoringContext,
-      params
-    )
-    expect(bonusScore).toBe(5)
-
-    // Test another bonus station contact (should get 3 points)
-    const bonusScore2 = scorers.bonusStations(
-      bonusContact2,
-      scoringContext,
-      params
-    )
-    expect(bonusScore2).toBe(3)
-
-    // Test contact with pre-existing score that isn't a bonus station
-    const contactWithScore: ValidContact = {
-      ...regularContact!,
-      score: 2,
+    // Create scoring details structure
+    const scoringDetails = {
+      OA4T: {
+        contacts: Array(3).fill({ score: 0, scoreRule: null, givenScore: 0 }),
+        bonusRuleApplied: null,
+        givenBonus: 0,
+        hasMinimumAppearances: true,
+      },
     }
-    const preservedScore = scorers.bonusStations(
-      contactWithScore,
-      scoringContext,
-      params
+
+    // Score the contacts
+    const scoredContacts = scoreContacts(
+      testContacts,
+      rulesContext,
+      scoringDetails
     )
-    expect(preservedScore).toBe(2) // Should preserve the score
+
+    // Create a ContestResult
+    const result: ContestResult = {
+      results: Array.from(scoredContacts.entries()).map(
+        ([callsign, contacts]) => [
+          callsign,
+          contacts.reduce((sum, c) => sum + c.score, 0),
+        ]
+      ),
+      scoringDetails,
+      missingParticipants: [],
+      blacklistedCallsignsFound: [],
+    }
+
+    // Verify individual contact scores
+    const contacts = scoredContacts.get('OA4T')
+    expect(contacts).toBeDefined()
+    if (!contacts) return
+
+    expect(contacts[0]?.score).toBe(1) // Regular contact worth 1 point
+    expect(contacts[1]?.score).toBe(5) // OA4O bonus station worth 5 points
+    expect(contacts[2]?.score).toBe(3) // OA4EFJ bonus station worth 3 points
+
+    // Total score should be 9 points
+    expect(getScoreForCallsign(result, 'OA4T')).toBe(9)
   })
 
   test('multiple scoring rules are applied correctly in sequence', () => {
@@ -298,37 +334,106 @@ describe('Scorers', () => {
         srxString: '456',
       },
       score: 0,
+      scoringDetailsIndex: 0,
     }
 
-    // Apply rules in sequence (as the scoring engine would)
-    // First timeRange - should get 2 for secondDay
-    const afterTimeRange = {
-      ...specialContact,
-      score: scorers.timeRange(specialContact, scoringContext, {
-        firstDay: 1,
-        secondDay: 2,
-      }),
-    }
-    expect(afterTimeRange.score).toBe(2)
+    // Create test contacts map and scoring details
+    const testContacts = new Map<string, ValidContact[]>([
+      ['OA4T', [specialContact]],
+    ])
 
-    // Then bonusStations - should get 5 for OA4O
-    const finalScore = scorers.bonusStations(afterTimeRange, scoringContext, {
-      OA4O: 5,
-      OA4EFJ: 3,
-    })
-    expect(finalScore).toBe(5)
+    // Create scoring details structure
+    const scoringDetails = {
+      OA4T: {
+        contacts: Array(1).fill({ score: 0, scoreRule: null, givenScore: 0 }),
+        bonusRuleApplied: null,
+        givenBonus: 0,
+        hasMinimumAppearances: true,
+      },
+    }
+
+    // Score the contacts
+    const scoredContacts = scoreContacts(
+      testContacts,
+      rulesContext,
+      scoringDetails
+    )
+
+    // Create a ContestResult for testing
+    const result: ContestResult = {
+      results: Array.from(scoredContacts.entries()).map(
+        ([callsign, contacts]) => [
+          callsign,
+          contacts.reduce((sum, c) => sum + c.score, 0),
+        ]
+      ),
+      scoringDetails,
+      missingParticipants: [],
+      blacklistedCallsignsFound: [],
+    }
+
+    // Check scoring
+    const score = getScoreForCallsign(result, 'OA4T')
+    expect(score).toBe(5) // 2 points for secondDay, then overwritten to 5 for OA4O bonus
+
+    // Check scoring details
+    const details = getScoringDetailsForCallsign(result, 'OA4T')
+    expect(details).toBeDefined()
+    if (!details) return
+
+    const contact = details.contacts[0]
+    expect(contact).toBeDefined()
+    if (!contact) return
+
+    expect(contact.scoreRule).toBe('bonusStations')
+    expect(contact.givenScore).toBe(5)
   })
 
   test('scoreContacts integrates all scoring rules correctly', () => {
-    // Use the sample rules and valid contacts
-    const scoredContacts = scoreContacts(validContacts, rulesContext)
+    // Create scoring details structure
+    const scoringDetails = {
+      OA4T: {
+        contacts: Array(2).fill({ score: 0, scoreRule: null, givenScore: 0 }),
+        bonusRuleApplied: null,
+        givenBonus: 0,
+        hasMinimumAppearances: true,
+      },
+      OA4P: {
+        contacts: Array(1).fill({ score: 0, scoreRule: null, givenScore: 0 }),
+        bonusRuleApplied: null,
+        givenBonus: 0,
+        hasMinimumAppearances: true,
+      },
+    }
+
+    // Score the contacts
+    const scoredContacts = scoreContacts(
+      validContacts,
+      rulesContext,
+      scoringDetails
+    )
+
+    // Create a ContestResult for testing
+    const result: ContestResult = {
+      results: Array.from(scoredContacts.entries()).map(
+        ([callsign, contacts]) => [
+          callsign,
+          contacts.reduce((sum, c) => sum + c.score, 0),
+        ]
+      ),
+      scoringDetails,
+      missingParticipants: [],
+      blacklistedCallsignsFound: [],
+    }
 
     // Check if all callsigns are preserved
-    expect(scoredContacts.has('OA4T')).toBe(true)
-    expect(scoredContacts.has('OA4P')).toBe(true)
+    const oa4tContacts = scoredContacts.get('OA4T')
+    const oa4pContacts = scoredContacts.get('OA4P')
 
-    // Check scoring for OA4T's contacts
-    const oa4tContacts = scoredContacts.get('OA4T')!
+    expect(oa4tContacts).toBeDefined()
+    expect(oa4pContacts).toBeDefined()
+
+    if (!oa4tContacts || !oa4pContacts) return
 
     // First contact: OA4P on firstDay (should be 1 point)
     expect(oa4tContacts[0]?.score).toBe(1)
@@ -338,9 +443,74 @@ describe('Scorers', () => {
     expect(oa4tContacts[1]?.score).toBe(3)
 
     // Check scoring for OA4P's contact
-    const oa4pContacts = scoredContacts.get('OA4P')!
-
     // Only contact: OA4T on firstDay (should be 1 point)
     expect(oa4pContacts[0]?.score).toBe(1)
+
+    // Check scoring details
+    const oa4tDetails = getScoringDetailsForCallsign(result, 'OA4T')
+    const oa4pDetails = getScoringDetailsForCallsign(result, 'OA4P')
+
+    expect(oa4tDetails).toBeDefined()
+    expect(oa4pDetails).toBeDefined()
+  })
+
+  test('timeRange scorer correctly assigns different scores based on time periods', () => {
+    const outsideRangeContact: ValidContact = {
+      callsign: 'TEST1',
+      contactedCallsign: 'TEST2',
+      date: '20241101', // Before contest
+      time: '120000',
+      band: '20m',
+      freq: '14.000',
+      mode: 'SSB',
+      exchanges: {
+        rstSent: '59',
+        rstRcvd: '59',
+        stxString: '123',
+        srxString: '456',
+      },
+      score: 0,
+      scoringDetailsIndex: 0,
+    }
+
+    // Create a new map with just the test contacts
+    const testContacts = new Map<string, ValidContact[]>()
+    testContacts.set('TEST1', [outsideRangeContact])
+
+    // Create empty scoring details object
+    const scoringDetails = {
+      TEST1: {
+        contacts: [],
+        bonusRuleApplied: null,
+        givenBonus: 0,
+        hasMinimumAppearances: true,
+      },
+    }
+
+    // Score the contacts
+    const scoredContacts = scoreContacts(
+      testContacts,
+      rulesContext,
+      scoringDetails
+    )
+
+    // The result should be like a ContestResult
+    const result: ContestResult = {
+      results: Array.from(scoredContacts.entries()).map(
+        ([callsign, contacts]) => [
+          callsign,
+          contacts.reduce((sum, c) => sum + c.score, 0),
+        ]
+      ),
+      scoringDetails,
+      missingParticipants: [],
+      blacklistedCallsignsFound: [],
+    }
+
+    // Check scoring
+    expect(getScoreForCallsign(result, 'TEST1')).toBe(0)
+    expect(
+      getScoringDetailsForCallsign(result, 'TEST1')?.hasMinimumAppearances
+    ).toBe(true)
   })
 })

@@ -2,6 +2,16 @@ import { describe, test, expect, beforeEach } from 'bun:test'
 import type { SimpleAdif } from 'adif-parser-ts'
 import type { ContestRules, Participant } from '../../src/lib/types'
 import { scoreContest } from '../../src/lib'
+import {
+  findResultByCallsign,
+  getScoreForCallsign,
+  getBlacklistedParticipants,
+  getResults,
+  getScoringDetailsForCallsign,
+  getValidContactCount,
+  hasMinimumAppearances,
+  getMissingParticipants,
+} from '../utils/test-helpers'
 
 describe('Contest Scoring E2E', () => {
   let sampleRules: ContestRules
@@ -190,7 +200,8 @@ describe('Contest Scoring E2E', () => {
   })
 
   test('scoreContest returns correctly scored and sorted results', () => {
-    const results = scoreContest(submissions, sampleRules)
+    const contestResults = scoreContest(submissions, sampleRules)
+    const results = getResults(contestResults)
 
     // Verify we have results for all participants
     expect(results.length).toBe(4)
@@ -215,22 +226,28 @@ describe('Contest Scoring E2E', () => {
 
     // OA4O: 2 contacts
     //   - OA4T (day2): 2 points
-    //   - OA4EFJ (day2): 2 points
-    //   Total = 4 points
+    //   - OA4EFJ (day2): 3 points (bonus station)
+    //   Total = 5 points
 
     // OA4T should have the highest score
-    expect(results[0]?.[0]).toBe('OA4T')
-    expect(results[0]?.[1]).toBe(9)
+    const oa4tResult = findResultByCallsign(contestResults, 'OA4T')
+    expect(oa4tResult).toBeDefined()
+    expect(oa4tResult![1]).toBe(9)
 
     // OA4EFJ should be second
-    expect(results[1]?.[0]).toBe('OA4EFJ')
-    expect(results[1]?.[1]).toBe(8)
+    const oa4efjResult = findResultByCallsign(contestResults, 'OA4EFJ')
+    expect(oa4efjResult).toBeDefined()
+    expect(oa4efjResult![1]).toBe(8)
 
-    // OA4O should be tied with OA4P (both 4 pts), but actual ordering depends
-    // on the tiebreaker implementation
-    const remainingScores = results.slice(2).map(r => r[1])
-    expect(remainingScores).toContain(4)
-    expect(remainingScores).toContain(4)
+    // OA4O should be third
+    const oa4oResult = findResultByCallsign(contestResults, 'OA4O')
+    expect(oa4oResult).toBeDefined()
+    expect(oa4oResult![1]).toBe(5)
+
+    // OA4P should be fourth
+    const oa4pResult = findResultByCallsign(contestResults, 'OA4P')
+    expect(oa4pResult).toBeDefined()
+    expect(oa4pResult![1]).toBe(4)
   })
 
   test('multiplying bonus is applied correctly', () => {
@@ -243,12 +260,22 @@ describe('Contest Scoring E2E', () => {
       },
     }
 
-    const results = scoreContest(submissions, rulesWithBonus)
+    const contestResults = scoreContest(submissions, rulesWithBonus)
+
+    // Get the results array
+    const results = getResults(contestResults)
 
     // Verify scores are doubled
-    expect(results[0]?.[1]).toBe(18) // OA4T: 9 * 2 = 18
-    expect(results[1]?.[1]).toBe(16) // OA4EFJ: 8 * 2 = 16
-    // Others should be doubled as well (8, 8)
+    const oa4tScore = getScoreForCallsign(contestResults, 'OA4T')
+    const oa4efjScore = getScoreForCallsign(contestResults, 'OA4EFJ')
+
+    expect(oa4tScore).toBe(18) // OA4T: 9 * 2 = 18
+    expect(oa4efjScore).toBe(16) // OA4EFJ: 8 * 2 = 16
+
+    // Check bonus amount in scoring details
+    const oa4tDetails = getScoringDetailsForCallsign(contestResults, 'OA4T')
+    expect(oa4tDetails).toBeDefined()
+    expect(oa4tDetails?.givenBonus).toBe(9)
   })
 
   test('minimumContacts rule filters out participants with insufficient appearances', () => {
@@ -291,21 +318,29 @@ describe('Contest Scoring E2E', () => {
       ['OA4Z', oa4zSubmission],
     ]
 
-    const results = scoreContest(testSubmissions, contestRules)
+    const contestResults = scoreContest(testSubmissions, contestRules)
 
     // OA4T appears in OA4P and OA4Z logs (2 appearances) - should be included
     // OA4P appears in OA4T logs (1 appearance) - should be excluded
     // OA4Z appears in 0 logs (0 appearances) - should be excluded
-    // OA4X appears in OA4T and OA4P logs (2 appearances) - missing submission so should be excluded from results
+    // OA4X appears in OA4T and OA4P logs (2 appearances) - missing submission so should be excluded
 
-    // Check that only OA4T is included
+    // Check scoring details
+    const results = getResults(contestResults)
     expect(results.length).toBe(1)
 
-    const includedCallsigns = results.map(result => result[0])
-    expect(includedCallsigns).toContain('OA4T')
-    expect(includedCallsigns).not.toContain('OA4X') // Missing participant
-    expect(includedCallsigns).not.toContain('OA4P') // Only 1 appearance
-    expect(includedCallsigns).not.toContain('OA4Z') // No appearances
+    // OA4T should be the only one that meets criteria
+    const oa4tDetails = getScoringDetailsForCallsign(contestResults, 'OA4T')
+    expect(oa4tDetails).toBeDefined()
+    expect(hasMinimumAppearances(contestResults, 'OA4T')).toBe(true)
+    expect(getScoreForCallsign(contestResults, 'OA4T')).toBe(1)
+
+    // Other stations should fail the minimum contacts rule
+    expect(hasMinimumAppearances(contestResults, 'OA4P')).toBe(false)
+    expect(hasMinimumAppearances(contestResults, 'OA4Z')).toBe(false)
+
+    // Missing participant OA4X shouldn't be included in final results
+    expect(results.find(([call]) => call === 'OA4X')).toBeUndefined()
   })
 
   test('blacklist rule correctly excludes stations', () => {
@@ -386,16 +421,29 @@ describe('Contest Scoring E2E', () => {
       ['OA4Z', oa4zSubmission],
     ]
 
-    const results = scoreContest(testSubmissions, rulesWithBlacklist)
+    const contestResults = scoreContest(testSubmissions, rulesWithBlacklist)
 
-    // Blacklisted OA4Z should not appear in results
-    expect(results.map(r => r[0])).not.toContain('OA4Z')
+    // Get blacklisted callsigns that were found
+    const blacklistedFound = getBlacklistedParticipants(contestResults)
+    expect(blacklistedFound).toContain('OA4Z')
 
-    // Contacts with OA4Z should be excluded from scores
-    const oa4tResult = results.find(r => r[0] === 'OA4T')
-    const oa4pResult = results.find(r => r[0] === 'OA4P')
-    expect(oa4tResult?.[1]).toBe(1) // Only OA4P contact counts
-    expect(oa4pResult?.[1]).toBe(1) // Only OA4T contact counts
+    // Get results list
+    const results = getResults(contestResults)
+
+    // Verify blacklisted OA4Z is excluded
+    const oa4zScore = getScoreForCallsign(contestResults, 'OA4Z')
+    expect(oa4zScore).toBeNull()
+
+    // Contacts with OA4Z should be invalidated
+    const oa4tDetails = getScoringDetailsForCallsign(contestResults, 'OA4T')
+    expect(oa4tDetails).toBeDefined()
+    expect(
+      oa4tDetails!.contacts.find(({ call }) => call === 'OA4Z')
+    ).toBeUndefined()
+
+    // Only valid contacts should be scored
+    expect(getValidContactCount(contestResults, 'OA4T')).toBe(1) // Only OA4P contact valid
+    expect(getValidContactCount(contestResults, 'OA4P')).toBe(1) // Only OA4T contact valid
   })
 
   test('tiebreaker rules are correctly applied', () => {
@@ -477,11 +525,39 @@ describe('Contest Scoring E2E', () => {
       testSubmissions,
       validStationsRules
     )
+    const validStationsScores = getResults(validStationsResults)
 
-    // Both have 3 contacts worth 1 point, but OA4P has more unique stations (3 vs 2)
-    expect(validStationsResults[0]?.[0]).toBe('OA4P')
-    expect(validStationsResults[1]?.[0]).toBe('OA4T')
-    expect(validStationsResults[0]?.[1]).toBe(validStationsResults[1]![1]) // Same score
+    // Both should have 3 valid contacts
+    expect(getValidContactCount(validStationsResults, 'OA4T')).toBe(3)
+    expect(getValidContactCount(validStationsResults, 'OA4P')).toBe(3)
+    expect(getScoreForCallsign(validStationsResults, 'OA4T')).toBe(3)
+    expect(getScoreForCallsign(validStationsResults, 'OA4P')).toBe(3)
+
+    // Get order of callsigns in results
+    const callsignsInOrder = validStationsScores.map(([call]) => call)
+    expect(callsignsInOrder[0]).toBe('OA4P') // Should be ranked higher due to more unique stations
+    expect(callsignsInOrder[1]).toBe('OA4T')
+
+    // Count unique valid stations for each
+    const oa4tDetails = getScoringDetailsForCallsign(
+      validStationsResults,
+      'OA4T'
+    )
+    const oa4pDetails = getScoringDetailsForCallsign(
+      validStationsResults,
+      'OA4P'
+    )
+    expect(oa4tDetails && oa4pDetails).toBeTruthy()
+
+    const getUniqueValidStations = (details: NonNullable<typeof oa4tDetails>) =>
+      new Set(
+        details.contacts.filter(c => !c.invalidValidationRule).map(c => c.call)
+      ).size
+
+    const oa4tUniqueStations = getUniqueValidStations(oa4tDetails!)
+    const oa4pUniqueStations = getUniqueValidStations(oa4pDetails!)
+    expect(oa4tUniqueStations).toBe(2) // OA4T has 2 unique stations (duplicate OA4P)
+    expect(oa4pUniqueStations).toBe(3) // OA4P has 3 unique stations
 
     // Second test: minimumTime tiebreaker
     const minimumTimeRules: ContestRules = {
@@ -492,7 +568,8 @@ describe('Contest Scoring E2E', () => {
       },
     }
 
-    const minimumTimeResults = scoreContest(testSubmissions, minimumTimeRules)
+    const results = scoreContest(testSubmissions, minimumTimeRules)
+    const minimumTimeResults = getResults(results)
 
     // Both have 3 contacts worth 1 point, but OA4T has shorter time span (2 hours vs 3 hours)
     expect(minimumTimeResults[0]?.[0]).toBe('OA4T')
@@ -505,6 +582,7 @@ describe('Contest Scoring E2E', () => {
       name: 'Missing Participant Test',
       start: '2025-01-01T00:00:00Z',
       end: '2025-01-31T23:59:59Z',
+      allowMissingParticipants: true,
       rules: {
         validation: [
           'timeRange',
@@ -541,11 +619,14 @@ describe('Contest Scoring E2E', () => {
       // OA4X is not submitting but appears in multiple logs
     ]
 
-    const results = scoreContest(testSubmissions, missParticipantRules)
+    const fullResults = scoreContest(testSubmissions, missParticipantRules)
+    const results = getResults(fullResults)
+    const missingParticipants = getMissingParticipants(fullResults)
 
     // OA4X should not be included as a "missing participant" although it appears in multiple logs
     const includedCallsigns = results.map(r => r[0])
     expect(includedCallsigns).not.toContain('OA4X')
+    expect(missingParticipants).toContain('OA4X')
 
     // OA4T and OA4P should be included and have appropriate scores
     expect(includedCallsigns).toContain('OA4T')

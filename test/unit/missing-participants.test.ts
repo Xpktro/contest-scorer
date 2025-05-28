@@ -1,11 +1,8 @@
 import { describe, test, expect, beforeEach } from 'bun:test'
 import type { SimpleAdif } from 'adif-parser-ts'
-import type {
-  ContestRules,
-  Participant,
-  ValidContact,
-} from '../../src/lib/types'
+import type { ContestRules, Participant } from '../../src/lib/types'
 import { scoreContest } from '../../src/lib'
+import { getResults, getScoreForCallsign } from '../utils/test-helpers'
 
 describe('Missing Participants Feature', () => {
   let baseRules: ContestRules
@@ -79,19 +76,19 @@ describe('Missing Participants Feature', () => {
       allowMissingParticipants: true,
     }
 
-    const results = scoreContest(submissions, rules)
+    const contestResults = scoreContest(submissions, rules)
 
     // Find OA4T's score
-    const oa4tResult = results.find(([callsign]) => callsign === 'OA4T')
+    const oa4tResult = getScoreForCallsign(contestResults, 'OA4T')
     expect(oa4tResult).toBeDefined()
     // OA4T should get points for both contacts (OA4P and OA4X)
-    expect(oa4tResult?.[1]).toBe(2)
+    expect(oa4tResult).toBe(2)
 
     // Find OA4P's score
-    const oa4pResult = results.find(([callsign]) => callsign === 'OA4P')
+    const oa4pResult = getScoreForCallsign(contestResults, 'OA4P')
     expect(oa4pResult).toBeDefined()
     // OA4P should get points for 1 contact (OA4T)
-    expect(oa4pResult?.[1]).toBe(1)
+    expect(oa4pResult).toBe(1)
   })
 
   test('With allowMissingParticipants=false, contacts with missing participants are rejected', () => {
@@ -103,16 +100,16 @@ describe('Missing Participants Feature', () => {
     const results = scoreContest(submissions, rules)
 
     // Find OA4T's score
-    const oa4tResult = results.find(([callsign]) => callsign === 'OA4T')
+    const oa4tResult = getScoreForCallsign(results, 'OA4T')
     expect(oa4tResult).toBeDefined()
     // OA4T should get points only for the contact with OA4P, not OA4X
-    expect(oa4tResult?.[1]).toBe(1)
+    expect(oa4tResult).toBe(1)
 
     // Find OA4P's score
-    const oa4pResult = results.find(([callsign]) => callsign === 'OA4P')
+    const oa4pResult = getScoreForCallsign(results, 'OA4P')
     expect(oa4pResult).toBeDefined()
     // OA4P should get points for 1 contact (OA4T)
-    expect(oa4pResult?.[1]).toBe(1)
+    expect(oa4pResult).toBe(1)
   })
 
   test('By default (unspecified), it should behave as if allowMissingParticipants=true for backward compatibility', () => {
@@ -124,16 +121,16 @@ describe('Missing Participants Feature', () => {
     const results = scoreContest(submissions, rules)
 
     // Find OA4T's score
-    const oa4tResult = results.find(([callsign]) => callsign === 'OA4T')
+    const oa4tResult = getScoreForCallsign(results, 'OA4T')
     expect(oa4tResult).toBeDefined()
     // OA4T should get points only for the contact with OA4P as our default for backward compatibility
     // is now to check allowMissingParticipants !== false (meaning unspecified behaves like false)
-    expect(oa4tResult?.[1]).toBe(1)
+    expect(oa4tResult).toBe(1)
 
     // Find OA4P's score
-    const oa4pResult = results.find(([callsign]) => callsign === 'OA4P')
+    const oa4pResult = getScoreForCallsign(results, 'OA4P')
     expect(oa4pResult).toBeDefined()
     // OA4P should get points for 1 contact (OA4T)
-    expect(oa4pResult?.[1]).toBe(1)
+    expect(oa4pResult).toBe(1)
   })
 })

@@ -2,6 +2,8 @@ import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
 import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'fs'
 import { execSync } from 'child_process'
+import type { ContestResult } from '../../src/lib/types'
+import { getScoreForCallsign } from '../utils/test-helpers'
 
 // Test directory and files paths
 const TEST_DIR = join(import.meta.dir, '..', '..', 'test-tmp')
@@ -128,7 +130,7 @@ ADIF Export
     // Read and parse the CSV
     const csvContent = readFileSync(RESULTS_PATH, 'utf8')
     const lines = csvContent.trim().split('\n')
-    expect(lines.length).toBe(4) // Header + 3 results
+    expect(lines.length).toBe(5) // Header + 4 results
 
     // Verify header
     expect(lines[0]).toBe('Rank,Callsign,Score')
@@ -159,7 +161,7 @@ ADIF Export
   })
 
   test('CLI handles custom output path', () => {
-    const customOutputPath = join(TEST_DIR, 'custom-results.csv')
+    const customOutputPath = join(TEST_DIR, 'custom-results.json')
 
     // Run the CLI command with custom output
     execSync(
@@ -173,13 +175,16 @@ ADIF Export
     // Check if custom results file was created
     expect(existsSync(customOutputPath)).toBe(true)
 
-    // Read and parse the CSV
-    const csvContent = readFileSync(customOutputPath, 'utf8')
-    const lines = csvContent.trim().split('\n')
+    const jsonContent = readFileSync(customOutputPath, 'utf8')
+    const results = JSON.parse(jsonContent) as ContestResult
 
     // Basic validation of the custom output file
-    expect(lines.length).toBe(4) // Header + 3 results
-    expect(lines[0]).toBe('Rank,Callsign,Score')
+    expect(results).toHaveProperty('results')
+    expect(results).toHaveProperty('scoringDetails')
+
+    // Verify the result count remains correct
+    // OA4T, OA4P, OA4EFJ and MALFORMED are present
+    expect(results.results.length).toBe(4)
   })
 
   test('CLI handles errors when input directory does not exist', () => {
@@ -331,22 +336,19 @@ ADIF Export
     expect(output).toContain('MALFORMED.adi')
 
     // Should still have created a results file
-    const resultsPath = join(testDir, 'results.csv')
+    const resultsPath = join(testDir, 'results.json')
     expect(existsSync(resultsPath)).toBe(true)
 
-    // Results should include data
-    const csvContent = readFileSync(resultsPath, 'utf8')
+    const jsonContent = readFileSync(resultsPath, 'utf8')
+    const results = JSON.parse(jsonContent) as ContestResult
 
-    // Check if the CSV has content
-    expect(csvContent.length).toBeGreaterThan(0)
+    // Check that the results have the expected structure
+    expect(results).toHaveProperty('results')
+    expect(results).toHaveProperty('scoringDetails')
 
-    // The CSV file should contain at least a header
-    expect(csvContent.includes('Rank,Callsign,Score')).toBe(true)
-
-    // Since we have two good ADIF files with matching contacts, we should have at least
-    // the header plus one or two result lines
-    const lines = csvContent.trim().split('\n')
-    expect(lines.length).toBeGreaterThan(1)
+    // Should have scores for both good participants
+    expect(getScoreForCallsign(results, 'GOOD1')).toBe(1)
+    expect(getScoreForCallsign(results, 'GOOD2')).toBe(1)
   })
 
   test('CLI verbose output includes additional information', () => {
@@ -364,7 +366,7 @@ ADIF Export
     expect(output).toContain('Contest period:')
     expect(output).toContain('Found')
     expect(output).toContain('ADIF files')
-    expect(output).toContain('Results:')
+    expect(output).toContain('Detailed results written')
   })
 
   test('CLI version command returns the correct version', () => {

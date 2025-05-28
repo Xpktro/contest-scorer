@@ -59,7 +59,8 @@ describe('Bonusers', () => {
           stxString: '123',
           srxString: '456',
         },
-        score: 1, // 1 point for first day
+        score: 1, // 1 point for first day,
+        scoringDetailsIndex: 0,
       },
       {
         callsign: 'OA4T',
@@ -76,6 +77,7 @@ describe('Bonusers', () => {
           srxString: '456',
         },
         score: 2, // 2 points for second day
+        scoringDetailsIndex: 1,
       },
       {
         callsign: 'OA4T',
@@ -92,6 +94,7 @@ describe('Bonusers', () => {
           srxString: '456',
         },
         score: 3, // 3 points for OA4EFJ on second day
+        scoringDetailsIndex: 2,
       },
     ])
 
@@ -112,6 +115,7 @@ describe('Bonusers', () => {
           srxString: '456',
         },
         score: 1, // 1 point for first day
+        scoringDetailsIndex: 0,
       },
       {
         callsign: 'OA4P',
@@ -128,6 +132,7 @@ describe('Bonusers', () => {
           srxString: '456',
         },
         score: 2, // 2 points for second day
+        scoringDetailsIndex: 1,
       },
     ])
 
@@ -179,8 +184,18 @@ describe('Bonusers', () => {
   })
 
   test('applyBonusRules calculates final scores correctly', () => {
+    const scoringDetails = Object.keys(validContacts).reduce(
+      (acc, callsign) => ({ ...acc, [callsign]: {} }),
+      {}
+    )
+
     // Apply the bonus rules to the scored contacts
-    const results = applyBonusRules(validContacts, sampleRules, rulesContext)
+    const results = applyBonusRules(
+      validContacts,
+      sampleRules,
+      rulesContext,
+      scoringDetails
+    )
 
     // Sort results by score (highest first)
     const sortedResults = results.sort((a, b) => b[1] - a[1])
@@ -205,6 +220,11 @@ describe('Bonusers', () => {
   })
 
   test('applyBonusRules handles multiple bonus rules in sequence', () => {
+    const scoringDetails = Object.keys(validContacts).reduce(
+      (acc, callsign) => ({ ...acc, [callsign]: {} }),
+      {}
+    )
+
     // Create rules with multiple bonus rules
     const rulesWithMultipleBonuses: ContestRules = {
       ...sampleRules,
@@ -221,7 +241,8 @@ describe('Bonusers', () => {
     const results = applyBonusRules(
       validContacts,
       rulesWithMultipleBonuses,
-      rulesContext
+      rulesContext,
+      scoringDetails
     )
 
     // Sort results by score (highest first)

@@ -1,7 +1,16 @@
 import { describe, test, expect, beforeEach } from 'bun:test'
 import type { SimpleAdif } from 'adif-parser-ts'
-import type { ContestRules, Participant } from '../../src/lib/types'
+import type {
+  ContestRules,
+  Participant,
+  ContestResult,
+} from '../../src/lib/types'
 import { scoreContest } from '../../src/lib'
+import {
+  getScoreForCallsign,
+  getMissingParticipants,
+  getValidContactCount,
+} from '../utils/test-helpers'
 
 describe('Missing Participants E2E', () => {
   let baseRules: ContestRules
@@ -146,24 +155,26 @@ describe('Missing Participants E2E', () => {
     // - Day 1: OA4P (1pt), OA4Q (1pt), OA4X (4pts with bonus) = 6pts
     // - Day 2: OA4P (2pts), OA4Y (2pts) = 4pts
     // Total: 10pts
-    const oa4tResult = results.find(([callsign]) => callsign === 'OA4T')
-    expect(oa4tResult).toBeDefined()
-    expect(oa4tResult?.[1]).toBe(10)
+    expect(getValidContactCount(results, 'OA4T')).toBe(5)
+    expect(getScoreForCallsign(results, 'OA4T')).toBe(10)
+
+    // Check missing participants are tracked
+    const missingParticipants = getMissingParticipants(results)
+    expect(missingParticipants).toContain('OA4X')
+    expect(missingParticipants).toContain('OA4Y')
 
     // OA4P should have 2 valid contacts
     // - Day 1: OA4T (1pt)
     // - Day 2: OA4T (2pts)
     // Total: 3pts
-    const oa4pResult = results.find(([callsign]) => callsign === 'OA4P')
-    expect(oa4pResult).toBeDefined()
-    expect(oa4pResult?.[1]).toBe(3)
+    expect(getValidContactCount(results, 'OA4P')).toBe(2)
+    expect(getScoreForCallsign(results, 'OA4P')).toBe(3)
 
     // OA4Q should have 1 valid contact
     // - Day 1: OA4T (1pt)
     // Total: 1pt
-    const oa4qResult = results.find(([callsign]) => callsign === 'OA4Q')
-    expect(oa4qResult).toBeDefined()
-    expect(oa4qResult?.[1]).toBe(1)
+    expect(getValidContactCount(results, 'OA4Q')).toBe(1)
+    expect(getScoreForCallsign(results, 'OA4Q')).toBe(1)
   })
 
   test('With allowMissingParticipants=false, contacts with missing participants are rejected', () => {
@@ -172,29 +183,30 @@ describe('Missing Participants E2E', () => {
       allowMissingParticipants: false,
     }
 
-    const results = scoreContest(submissions, rules)
+    const results = scoreContest(submissions, rules) as ContestResult
 
     // OA4T should have 3 valid contacts (missing OA4X and OA4Y)
     // - Day 1: OA4P (1pt), OA4Q (1pt) = 2pts
     // - Day 2: OA4P (2pts) = 2pts
     // Total: 4pts
-    const oa4tResult = results.find(([callsign]) => callsign === 'OA4T')
-    expect(oa4tResult).toBeDefined()
-    expect(oa4tResult?.[1]).toBe(4)
+    expect(getValidContactCount(results, 'OA4T')).toBe(3)
+    expect(getScoreForCallsign(results, 'OA4T')).toBe(4)
+
+    // Check missing participants are not tracked
+    const missingParticipants = getMissingParticipants(results)
+    expect(missingParticipants).toHaveLength(0)
 
     // OA4P should have 2 valid contacts
     // - Day 1: OA4T (1pt)
     // - Day 2: OA4T (2pts)
     // Total: 3pts
-    const oa4pResult = results.find(([callsign]) => callsign === 'OA4P')
-    expect(oa4pResult).toBeDefined()
-    expect(oa4pResult?.[1]).toBe(3)
+    expect(getValidContactCount(results, 'OA4P')).toBe(2)
+    expect(getScoreForCallsign(results, 'OA4P')).toBe(3)
 
     // OA4Q should have 1 valid contact
     // - Day 1: OA4T (1pt)
     // Total: 1pt
-    const oa4qResult = results.find(([callsign]) => callsign === 'OA4Q')
-    expect(oa4qResult).toBeDefined()
-    expect(oa4qResult?.[1]).toBe(1)
+    expect(getValidContactCount(results, 'OA4Q')).toBe(1)
+    expect(getScoreForCallsign(results, 'OA4Q')).toBe(1)
   })
 })

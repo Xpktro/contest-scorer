@@ -33,6 +33,7 @@ describe('Tiebreakers', () => {
           srxString: '456',
         },
         score: 1,
+        scoringDetailsIndex: 0,
       },
       {
         callsign: 'OA4T',
@@ -49,6 +50,7 @@ describe('Tiebreakers', () => {
           srxString: '456',
         },
         score: 2,
+        scoringDetailsIndex: 1,
       },
     ])
 
@@ -69,6 +71,7 @@ describe('Tiebreakers', () => {
           srxString: '456',
         },
         score: 1,
+        scoringDetailsIndex: 0,
       },
       {
         callsign: 'OA4P',
@@ -85,6 +88,7 @@ describe('Tiebreakers', () => {
           srxString: '456',
         },
         score: 1,
+        scoringDetailsIndex: 1,
       },
       {
         callsign: 'OA4P',
@@ -101,6 +105,7 @@ describe('Tiebreakers', () => {
           srxString: '456',
         },
         score: 1,
+        scoringDetailsIndex: 2,
       },
     ])
 
@@ -121,6 +126,7 @@ describe('Tiebreakers', () => {
           srxString: '456',
         },
         score: 1,
+        scoringDetailsIndex: 0,
       },
       {
         callsign: 'OA4EFJ',
@@ -137,6 +143,7 @@ describe('Tiebreakers', () => {
           srxString: '456',
         },
         score: 1,
+        scoringDetailsIndex: 1,
       },
       {
         callsign: 'OA4EFJ',
@@ -153,6 +160,7 @@ describe('Tiebreakers', () => {
           srxString: '456',
         },
         score: 1,
+        scoringDetailsIndex: 2,
       },
     ])
 
@@ -226,6 +234,7 @@ describe('Tiebreakers', () => {
           srxString: '456',
         },
         score: 1,
+        scoringDetailsIndex: 0,
       },
     ])
 

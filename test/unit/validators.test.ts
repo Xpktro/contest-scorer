@@ -6,6 +6,8 @@ import type {
   ValidationContext,
   ValidContact,
   RulesContext,
+  ParticipantScoringDetail,
+  ContactValidatorResult,
 } from '../../src/lib/types'
 import {
   defaultValidator,
@@ -33,7 +35,8 @@ function createContact(
 // Create ValidContact objects from the raw contact data
 function createValidContact(
   rawContact: ReturnType<typeof createContact>,
-  callsign = 'OA4T'
+  callsign = 'OA4T',
+  index = 0
 ): ValidContact {
   const contactedCallsign = String(rawContact.call || '')
   return {
@@ -51,7 +54,47 @@ function createValidContact(
       stxString: String(rawContact.stx_string || ''),
       srxString: String(rawContact.srx_string || ''),
     },
+    scoringDetailsIndex: index,
   }
+}
+
+// Create empty initial scoring details for a callsign
+function createScoringDetails(
+  callsign: string
+): Record<string, Partial<ParticipantScoringDetail>> {
+  return {
+    [callsign]: {
+      contacts: [],
+      bonusRuleApplied: null,
+      givenBonus: 0,
+      hasMinimumAppearances: true,
+    },
+  }
+}
+
+// Common test helper to create initial scoring details
+function initializeScoringDetails(
+  callsigns: string[]
+): Record<string, Partial<ParticipantScoringDetail>> {
+  return Object.fromEntries(
+    callsigns.map(callsign => [
+      callsign,
+      {
+        contacts: [],
+        bonusRuleApplied: null,
+        givenBonus: 0,
+        hasMinimumAppearances: false,
+      },
+    ])
+  )
+}
+
+// Helper to get contacts from validator result
+function getContactsFromResult(
+  result: ContactValidatorResult,
+  callsign: string
+): ValidContact[] {
+  return result.validContacts.get(callsign) || []
 }
 
 describe('Validators', () => {
@@ -366,6 +409,7 @@ describe('Validators', () => {
         mode: 'SSB',
         score: 0,
         exchanges: { rstSent: '', rstRcvd: '', stxString: '', srxString: '' },
+        scoringDetailsIndex: 0,
       }
 
       const existingContacts = new Map<string, ValidContact[]>()
@@ -604,6 +648,7 @@ describe('Validators', () => {
                         stxString: '456',
                         srxString: '123',
                       },
+                      scoringDetailsIndex: 0,
                     },
                   ],
                 ],
@@ -655,25 +700,6 @@ describe('Validators', () => {
           maximumTimeDiff: 5,
         })
       ).toBe(false)
-
-      // Now test with the second validation pass (using validated contacts)
-      // We'll set up a mock index structure and context
-      const validContactObj: ValidContact = {
-        callsign: 'OA4P',
-        contactedCallsign: 'OA4T',
-        date: '20241210',
-        time: '120000',
-        freq: '14.000',
-        band: '20m', // This should be the band name (20m), not the frequency value
-        mode: 'SSB',
-        score: 0,
-        exchanges: {
-          rstSent: '59',
-          rstRcvd: '59',
-          stxString: '123',
-          srxString: '456',
-        },
-      }
 
       // Test the same assertions but with the second pass context
       expect(
@@ -747,6 +773,7 @@ describe('Validators', () => {
                         stxString: '456',
                         srxString: '123',
                       },
+                      scoringDetailsIndex: 0,
                     },
                   ],
                 ],
@@ -802,6 +829,7 @@ describe('Validators', () => {
           mode: 'SSB',
           score: 0,
           exchanges: { rstSent: '', rstRcvd: '', stxString: '', srxString: '' },
+          scoringDetailsIndex: 0,
         },
       ]
 
@@ -816,6 +844,7 @@ describe('Validators', () => {
           mode: 'SSB',
           score: 0,
           exchanges: { rstSent: '', rstRcvd: '', stxString: '', srxString: '' },
+          scoringDetailsIndex: 0,
         },
         {
           callsign: 'OA4P',
@@ -827,6 +856,7 @@ describe('Validators', () => {
           mode: 'CW',
           score: 0,
           exchanges: { rstSent: '', rstRcvd: '', stxString: '', srxString: '' },
+          scoringDetailsIndex: 1,
         },
         {
           callsign: 'OA4P',
@@ -838,6 +868,7 @@ describe('Validators', () => {
           mode: 'CW',
           score: 0,
           exchanges: { rstSent: '', rstRcvd: '', stxString: '', srxString: '' },
+          scoringDetailsIndex: 2,
         },
       ]
 
@@ -852,6 +883,7 @@ describe('Validators', () => {
           mode: 'CW',
           score: 0,
           exchanges: { rstSent: '', rstRcvd: '', stxString: '', srxString: '' },
+          scoringDetailsIndex: 0,
         },
         {
           callsign: 'OA4EFJ',
@@ -863,6 +895,7 @@ describe('Validators', () => {
           mode: 'CW',
           score: 0,
           exchanges: { rstSent: '', rstRcvd: '', stxString: '', srxString: '' },
+          scoringDetailsIndex: 1,
         },
         {
           callsign: 'OA4EFJ',
@@ -874,6 +907,7 @@ describe('Validators', () => {
           mode: 'CW',
           score: 0,
           exchanges: { rstSent: '', rstRcvd: '', stxString: '', srxString: '' },
+          scoringDetailsIndex: 2,
         },
       ]
 
@@ -902,29 +936,39 @@ describe('Validators', () => {
         bandRanges: [],
       }
 
+      const scoringDetails = initializeScoringDetails([
+        'OA4T',
+        'OA4P',
+        'OA4EFJ',
+      ])
+
       // With minimum of 1 appearance and allowMissingParticipants=true
       const result1 = minimumContactsValidator(
         validContactsMap,
         1,
-        mockRulesContext
+        mockRulesContext,
+        scoringDetails,
+        new Set()
       )
       expect(result1.has('OA4T')).toBe(true)
       expect(result1.has('OA4P')).toBe(true)
       expect(result1.has('OA4EFJ')).toBe(true)
       expect(result1.has('OA4ABC')).toBe(true) // Should be added as a missing participant
-      expect(result1.get('OA4ABC')?.length).toBe(0) // Missing participant should have empty contacts
+      expect(result1.get('OA4ABC')).toBeNull() // Missing participant should have empty contacts
 
       // With minimum of 2 appearances and allowMissingParticipants=true
       const result2 = minimumContactsValidator(
         validContactsMap,
         2,
-        mockRulesContext
+        mockRulesContext,
+        scoringDetails,
+        new Set()
       )
       expect(result2.has('OA4T')).toBe(true) // Appears in OA4P and OA4EFJ logs
       expect(result2.has('OA4P')).toBe(true) // Appears in OA4T and OA4EFJ logs
       expect(result2.has('OA4EFJ')).toBe(false) // Only appears once as a contacted station
       expect(result2.has('OA4ABC')).toBe(true) // Appears in OA4P and OA4EFJ logs
-      expect(result2.get('OA4ABC')?.length).toBe(0) // Missing participant should have empty contacts
+      expect(result2.get('OA4ABC')).toBeNull() // Missing participant should have empty contacts
 
       // With minimum of 2 appearances but allowMissingParticipants=false
       const mockRulesContextDisallowMissing = {
@@ -937,7 +981,9 @@ describe('Validators', () => {
       const resultNoMissing = minimumContactsValidator(
         validContactsMap,
         2,
-        mockRulesContextDisallowMissing
+        mockRulesContextDisallowMissing,
+        scoringDetails,
+        new Set()
       )
       expect(resultNoMissing.has('OA4T')).toBe(true) // Appears in OA4P and OA4EFJ logs
       expect(resultNoMissing.has('OA4P')).toBe(true) // Appears in OA4T and OA4EFJ logs
@@ -945,7 +991,13 @@ describe('Validators', () => {
       expect(resultNoMissing.has('OA4ABC')).toBe(false) // Should not be added as missing participants aren't allowed
 
       // With minimum of 3 appearances
-      const result3 = minimumContactsValidator(validContactsMap, 3)
+      const result3 = minimumContactsValidator(
+        validContactsMap,
+        3,
+        mockRulesContext,
+        scoringDetails,
+        new Set()
+      )
       expect(result3.has('OA4T')).toBe(false) // Only appears twice
       expect(result3.has('OA4P')).toBe(false) // Only appears twice
       expect(result3.has('OA4EFJ')).toBe(false) // Only appears once
@@ -1064,15 +1116,18 @@ describe('Validators', () => {
 
       // Check blacklist functionality
       // 1. Blacklisted station should not be in results at all
-      expect(validatedContacts.has('OA4EFJ')).toBe(false)
+      expect(validatedContacts.blacklistedCallsignsFound.has('OA4EFJ')).toBe(
+        true
+      )
+      expect(validatedContacts.validContacts.has('OA4EFJ')).toBe(false)
 
       // 2. Non-blacklisted stations should be in results
-      expect(validatedContacts.has('OA4T')).toBe(true)
-      expect(validatedContacts.has('OA4P')).toBe(true)
+      expect(validatedContacts.validContacts.has('OA4T')).toBe(true)
+      expect(validatedContacts.validContacts.has('OA4P')).toBe(true)
 
       // 3. Contacts with blacklisted stations should be excluded
-      const oa4tContacts = validatedContacts.get('OA4T') || []
-      const oa4pContacts = validatedContacts.get('OA4P') || []
+      const oa4tContacts = validatedContacts.validContacts.get('OA4T') || []
+      const oa4pContacts = validatedContacts.validContacts.get('OA4P') || []
 
       // OA4T should only have contact with OA4P, not with OA4EFJ
       expect(oa4tContacts.length).toBe(1)
@@ -1097,14 +1152,21 @@ describe('Validators', () => {
       )
 
       // Both blacklisted stations should not be in results
-      expect(validatedContactsMultiple.has('OA4EFJ')).toBe(false)
-      expect(validatedContactsMultiple.has('OA4T')).toBe(false)
+      expect(validatedContactsMultiple.validContacts.has('OA4EFJ')).toBe(false)
+      expect(validatedContactsMultiple.validContacts.has('OA4T')).toBe(false)
+      expect(
+        validatedContactsMultiple.blacklistedCallsignsFound.has('OA4EFJ')
+      ).toBe(true)
+      expect(
+        validatedContactsMultiple.blacklistedCallsignsFound.has('OA4T')
+      ).toBe(true)
 
       // Only non-blacklisted station should be in results
-      expect(validatedContactsMultiple.has('OA4P')).toBe(true)
+      expect(validatedContactsMultiple.validContacts.has('OA4P')).toBe(true)
 
       // OA4P should have no valid contacts since all contacts are with blacklisted stations
-      const oa4pContactsMultiple = validatedContactsMultiple.get('OA4P') || []
+      const oa4pContactsMultiple =
+        validatedContactsMultiple.validContacts.get('OA4P') || []
       expect(oa4pContactsMultiple.length).toBe(0)
     })
   })
@@ -1116,22 +1178,22 @@ describe('Validators', () => {
 
       // We should have valid contacts for all callsigns
       expect(
-        validatedContacts.has('OA4T') &&
-          validatedContacts.get('OA4T')!.length > 0
+        validatedContacts.validContacts.has('OA4T') &&
+          validatedContacts.validContacts.get('OA4T')!.length > 0
       ).toBe(true)
       expect(
-        validatedContacts.has('OA4P') &&
-          validatedContacts.get('OA4P')!.length > 0
+        validatedContacts.validContacts.has('OA4P') &&
+          validatedContacts.validContacts.get('OA4P')!.length > 0
       ).toBe(true)
       expect(
-        validatedContacts.has('OA4EFJ') &&
-          validatedContacts.get('OA4EFJ')!.length > 0
+        validatedContacts.validContacts.has('OA4EFJ') &&
+          validatedContacts.validContacts.get('OA4EFJ')!.length > 0
       ).toBe(true)
 
       // Check specific contacts for each participant
-      const oa4tContacts = validatedContacts.get('OA4T')!
-      const oa4pContacts = validatedContacts.get('OA4P')!
-      const oa4efjContacts = validatedContacts.get('OA4EFJ')!
+      const oa4tContacts = validatedContacts.validContacts.get('OA4T')!
+      const oa4pContacts = validatedContacts.validContacts.get('OA4P')!
+      const oa4efjContacts = validatedContacts.validContacts.get('OA4EFJ')!
 
       // OA4T should have contacts with OA4P and OA4EFJ
       expect(oa4tContacts.length).toBe(2)
@@ -1173,7 +1235,7 @@ describe('Validators', () => {
         submissions,
         rulesWithMinimumContacts
       )
-      expect(filteredContacts.size).toBe(0)
+      expect(filteredContacts.validContacts.size).toBe(0)
     })
   })
 })
