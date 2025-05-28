@@ -26,7 +26,7 @@ const program = new Command()
 program
   .name('contest-scorer')
   .description('Score ham radio contests from ADIF files')
-  .version('1.0.0')
+  .version('0.1.0')
 
 program
   .command('score')
