@@ -36,14 +36,7 @@ export const scoreContest = (
     scoringDetails
   )
 
-  // Filter out missing participants (those with empty contact arrays)
-  // Missing participants award points but don't appear in rankings
-  const filteredResults = results.filter(([callsign, _]) => {
-    const contacts = scoredContacts.get(callsign) || []
-    return contacts.length > 0
-  })
-
-  const sortedResults = filteredResults.sort(
+  const sortedResults = results.sort(
     (a: ScoringResult, b: ScoringResult) => b[1] - a[1]
   )
 
