@@ -96,7 +96,8 @@ export const validateContacts: ContactValidator = (
           contactsAfterDefaultValidation,
           minimumContactsRule[1] as number,
           rulesContext,
-          scoringDetails
+          scoringDetails,
+          missingParticipants
         )
       : contactsAfterDefaultValidation
 
@@ -158,7 +159,7 @@ const applyDefaultValidation = (
       if (!isValid) {
         context.scoringDetails[callsign]!.contacts![
           contact.scoringDetailsIndex
-        ]!.invalidRule = 'default'
+        ]!.invalidValidationRule = 'default'
       }
 
       return isValid
@@ -243,7 +244,7 @@ const applyInitialValidation = (
       const contactedCallsign = String(contact.call || '')
       const currentContactDetails = {
         ...contact,
-        invalidRule: null,
+        invalidValidationRule: null,
       } as ContactScoringDetail
 
       if (blacklistedCallsigns.has(contactedCallsign)) {
@@ -262,7 +263,7 @@ const applyInitialValidation = (
         )
 
         if (!passesValidation) {
-          currentContactDetails.invalidRule = ruleName
+          currentContactDetails.invalidValidationRule = ruleName
           currentContactDetails.givenScore = 0
           currentContactDetails.scoreRule = null
         }
