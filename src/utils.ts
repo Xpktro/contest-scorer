@@ -1,4 +1,4 @@
-import type { Contact, ValidationRuleConfig } from 'types'
+import type { Contact, ScoringRuleConfig, ValidationRuleConfig } from 'types'
 
 export const getDateTimeFromContact = (
   contact: Contact
@@ -51,7 +51,10 @@ export const areFrequenciesWithinTolerance = (
   return diff <= toleranceKhz
 }
 
-export const extractRule = (rules: ValidationRuleConfig[], name: string) =>
+export const extractRule = (
+  rules: ValidationRuleConfig[] | ScoringRuleConfig[],
+  name: string
+) =>
   rules.find(rule => {
     const ruleName = typeof rule === 'string' ? rule : rule[0]
     return ruleName === name
