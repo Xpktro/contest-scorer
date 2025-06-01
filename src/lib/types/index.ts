@@ -13,7 +13,11 @@ export type ValidationRule =
   | 'exchange'
   | 'minimumContacts'
 
-export type ScoringRule = 'default' | 'timeRange' | 'bonusStations'
+export type ScoringRule =
+  | 'default'
+  | 'timeRange'
+  | 'bonusStations'
+  | 'minimumContacts'
 
 export type BonusRule = 'default'
 
