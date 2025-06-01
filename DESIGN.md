@@ -33,6 +33,7 @@ If present in the configuration file, the following rules will be applied, which
   - 'default': The contact will be scored with a default value. Params: 1
   - 'timeRange': The contact will be scored with a value based on the time range defined in the validations rule. Params: {'firstHalf': 2, 'secondHalf': 3}
   - 'bonusStations': Contacts with a given callsign will be scored with a bonus. Params: {'OA4O': 5}
+  - 'minimumContacts': Participants must have at least the specified number of valid contacts to receive any score. Participants with fewer contacts will still appear in results but with zero points. Params: 2
 
 3. Every scored contact from a given callsign will be summed to get the total score for that callsign.
 

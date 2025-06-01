@@ -121,6 +121,7 @@ Contest rules are defined in a JSON file with the following structure:
 - `default`: Assigns a default score to each contact. Default is 1.
 - `timeRange`: Assigns different scores based on time ranges. Format: `{"firstHalf": 2, "secondHalf": 3}`
 - `bonusStations`: Assigns bonus scores for contacting certain stations. Format: `{"OA4O": 5, "OA4EFJ": 3}`
+- `minimumContacts`: Requires participants to have at least the specified number of valid contacts to receive any score. Participants with fewer contacts will still appear in results but with zero points. Format: `2`
 
 ### Bonus Rules
 
