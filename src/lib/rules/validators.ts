@@ -217,10 +217,18 @@ export const minimumContactsValidator = (
   // Filter out participants who don't appear in enough logs
   return new Map(
     Array.from<[string, ValidContact[] | null]>(validContactsMap)
-      .filter(
-        ([callsign]) =>
+      .filter(([callsign, contacts]) => {
+        const hasMinimumAppearances =
           (appearanceCounts.get(callsign) || 0) >= minimumAppearances
-      )
+        if (!hasMinimumAppearances) {
+          for (const contact of contacts || []) {
+            scoringDetails[callsign]!.contacts![
+              contact.scoringDetailsIndex
+            ]!.givenScore ??= 0
+          }
+        }
+        return hasMinimumAppearances
+      })
       .concat(missingParticipantsResult)
   )
 }
