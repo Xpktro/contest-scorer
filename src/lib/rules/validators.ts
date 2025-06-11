@@ -222,9 +222,12 @@ export const minimumContactsValidator = (
           (appearanceCounts.get(callsign) || 0) >= minimumAppearances
         if (!hasMinimumAppearances) {
           for (const contact of contacts || []) {
-            scoringDetails[callsign]!.contacts![
-              contact.scoringDetailsIndex
-            ]!.givenScore ??= 0
+            if (!scoringDetails[callsign]!.contacts!) continue
+            const contactDetail =
+              scoringDetails[callsign]!.contacts![contact.scoringDetailsIndex]
+            if (contactDetail) {
+              contactDetail.givenScore ??= 0
+            }
           }
         }
         return hasMinimumAppearances
