@@ -219,7 +219,7 @@ program
             colors.reset
         )
         if (scoredContest.missingParticipants.length > 0) {
-          const missingTable = new AsciiTable3('Missing Participants')
+          const missingTable = new AsciiTable3()
             .setHeading('Callsign')
             .setStyle('unicode-single')
 
@@ -240,7 +240,7 @@ program
               'Blacklisted Callsigns Found:' +
               colors.reset
           )
-          const blacklistTable = new AsciiTable3('Blacklisted Callsigns')
+          const blacklistTable = new AsciiTable3()
             .setHeading('Callsign')
             .setStyle('unicode-single')
 
@@ -288,7 +288,7 @@ program
               contact.mode,
               validText,
               contact.invalidValidationRule || '(none)',
-              contact.scoreRule,
+              contact.scoreRule || '(none)',
               score
             )
           })
