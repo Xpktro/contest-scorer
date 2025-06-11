@@ -1,29 +1,52 @@
 # Contest Scorer
 
-A ham radio contest scoring tool built with Bun and TypeScript. This tool reads ADIF files from contest participants and scores them according to configurable rules.
+A ham radio contest scoring tool built with TypeScript. This tool reads ADIF files from contest participants and scores them according to configurable rules.
 
 ## Features
 
 - Score ham radio contests using ADIF files
 - Configurable validation, scoring, bonus, and tiebreaker rules
 - Command-line interface with colored output
-
-## Requirements
-
-- [Bun](https://bun.sh/) 1.2.8 or later
+- Programmatic API for integration into other tools
 
 ## Installation
 
+### As a CLI Tool (Global Installation)
+
+```bash
+bun install -g contest-scorer
+```
+
+Or install directly from GitHub:
+
+```bash
+bun install -g github:xpktro/contest-scorer
+```
+
+### As a Library
+
+```bash
+bun add contest-scorer
+```
+
+Or install directly from GitHub:
+
+```bash
+bun add github:xpktro/contest-scorer
+```
+
+### Development Setup
+
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/contest-scorer.git
+git clone https://github.com/xpktro/contest-scorer.git
 cd contest-scorer
 
 # Install dependencies
 bun install
 
-# Build the project
-bun run build
+# Run the CLI directly
+bun run start score --input ./logs
 ```
 
 ## Usage
@@ -32,20 +55,23 @@ bun run build
 
 ```bash
 # Basic usage
-bun start score --input ./logs
+contest-scorer score --input ./logs
+
+# Or run directly with bun
+bun run start score --input ./logs
 
 # With custom output file
-bun start score --input ./logs --rules rules.json --output ./results/contest-results.csv
+contest-scorer score --input ./logs --rules rules.json --output ./results/contest-results.csv
 
 # Display help
-bun start help
+contest-scorer --help
 ```
 
 ### Using as a Library
 
 ```typescript
 import { scoreContest } from 'contest-scorer'
-import { Participant, ContestRules } from 'contest-scorer/types'
+import type { Participant, ContestRules } from 'contest-scorer'
 
 // Define your contest rules
 const rules: ContestRules = {
@@ -72,6 +98,11 @@ const submissions: Participant[] = [
 
 // Score the contest
 const results = scoreContest(submissions, rules)
+
+// Access results
+console.log('Final standings:', results.results)
+console.log('Detailed scoring:', results.scoringDetails)
+console.log('Missing participants:', results.missingParticipants)
 console.log(results)
 ```
 
@@ -214,6 +245,9 @@ bun test:e2e
 
 # Format code
 bun run format
+
+# Run the CLI locally
+bun run start score --input ./logs
 ```
 
 ## License
