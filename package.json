@@ -1,12 +1,25 @@
 {
   "name": "contest-scorer",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": "Moisés Cachay - OA4EFJ <hello@moises.dev>",
   "license": "MIT",
-  "module": "src/index.ts",
+  "description": "A CLI tool and library for scoring ham radio contests based on ADIF logs.",
+  "homepage": "https://github.com/xpktro/contest-scorer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xpktro/contest-scorer.git"
+  },
   "type": "module",
-  "description": "A CLI tool for scoring ham radio contests based on ADIF logs.",
-  "private": true,
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/lib/types/index.ts"
+  },
+  "bin": {
+    "contest-scorer": "./src/cli/index.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "prettier": "^3.5.3"
@@ -21,13 +34,9 @@
   },
   "scripts": {
     "start": "bun run src/cli/index.ts",
-    "build": "bun build src/index.ts --outdir dist",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "test": "bun test",
     "test:unit": "bun test test/unit",
     "test:e2e": "bun test test/e2e"
-  },
-  "bin": {
-    "contest-scorer": "./src/cli/index.ts"
   }
 }
