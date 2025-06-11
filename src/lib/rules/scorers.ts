@@ -35,7 +35,7 @@ export const bonusStationsScorer = (
   return params[contactedCallsign] ?? validContact.score
 }
 
-export const scorers: Record<ScoringRule, any> = {
+export const scorers: Record<Exclude<ScoringRule, 'minimumContacts'>, any> = {
   default: defaultScorer,
   timeRange: timeRangeScorer,
   bonusStations: bonusStationsScorer,
