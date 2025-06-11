@@ -1,2 +1,2 @@
-export * from 'lib/types'
-export * from 'cli/types'
+export * from '../lib/types'
+export * from '../cli/types'
