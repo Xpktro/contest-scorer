@@ -942,13 +942,22 @@ describe('Validators', () => {
         'OA4EFJ',
       ])
 
+      // Create appearance counts based on the test data
+      const appearanceCounts = new Map<string, number>([
+        ['OA4T', 2], // appears in OA4P and OA4EFJ logs
+        ['OA4P', 2], // appears in OA4T and OA4EFJ logs
+        ['OA4EFJ', 1], // appears in OA4T log only
+        ['OA4ABC', 2], // appears in OA4P and OA4EFJ logs
+      ])
+
       // With minimum of 1 appearance and allowMissingParticipants=true
       const result1 = minimumContactsValidator(
         validContactsMap,
         1,
         mockRulesContext,
         scoringDetails,
-        new Set()
+        new Set(['OA4ABC']), // OA4ABC is a missing participant
+        appearanceCounts
       )
       expect(result1.has('OA4T')).toBe(true)
       expect(result1.has('OA4P')).toBe(true)
@@ -962,7 +971,8 @@ describe('Validators', () => {
         2,
         mockRulesContext,
         scoringDetails,
-        new Set()
+        new Set(['OA4ABC']), // OA4ABC is a missing participant
+        appearanceCounts
       )
       expect(result2.has('OA4T')).toBe(true) // Appears in OA4P and OA4EFJ logs
       expect(result2.has('OA4P')).toBe(true) // Appears in OA4T and OA4EFJ logs
@@ -983,7 +993,8 @@ describe('Validators', () => {
         2,
         mockRulesContextDisallowMissing,
         scoringDetails,
-        new Set()
+        new Set(['OA4ABC']), // OA4ABC is a missing participant
+        appearanceCounts
       )
       expect(resultNoMissing.has('OA4T')).toBe(true) // Appears in OA4P and OA4EFJ logs
       expect(resultNoMissing.has('OA4P')).toBe(true) // Appears in OA4T and OA4EFJ logs
@@ -996,7 +1007,8 @@ describe('Validators', () => {
         3,
         mockRulesContext,
         scoringDetails,
-        new Set()
+        new Set(['OA4ABC']), // OA4ABC is a missing participant
+        appearanceCounts
       )
       expect(result3.has('OA4T')).toBe(false) // Only appears twice
       expect(result3.has('OA4P')).toBe(false) // Only appears twice
