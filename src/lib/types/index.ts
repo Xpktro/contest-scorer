@@ -139,8 +139,8 @@ export interface ParticipantScoringDetail {
 export interface ContestResult {
   results: ScoringResult[]
   scoringDetails: Record<Callsign, ParticipantScoringDetail>
-  missingParticipants: Callsign[]
-  blacklistedCallsignsFound: Callsign[]
+  missingParticipants: [Callsign, number][]
+  blacklistedCallsignsFound: [Callsign, number][]
 }
 
 export type ContactValidatorResult = {
@@ -149,6 +149,7 @@ export type ContactValidatorResult = {
   missingParticipants: Set<Callsign>
   blacklistedCallsignsFound: Set<Callsign>
   appearanceCounts: Map<Callsign, number>
+  blacklistedAppearanceCounts: Map<Callsign, number>
 }
 
 export type ContactValidator = (
