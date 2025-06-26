@@ -16,11 +16,13 @@ import type {
 import {
   defaultValidator,
   minimumContactsValidator,
+  uniqueContactsByTimeRangeValidator,
   validators,
 } from 'lib/rules/validators'
 import { extractRule, getDateTimeFromContact } from 'utils'
 
 const RULES_TO_SKIP_DURING_INITIAL_VALIDATION: ValidationRule[] = [
+  'uniqueContactsByTimeRange',
   'minimumContacts',
   'default',
 ] as const
@@ -52,6 +54,10 @@ export const validateContacts: ContactValidator = (
   const minimumContactsRule = extractRule(
     contestRules.rules.validation,
     'minimumContacts'
+  )
+  const uniqueContactsByTimeRangeRule = extractRule(
+    contestRules.rules.validation,
+    'uniqueContactsByTimeRange'
   )
 
   const initialValidationRules = contestRules.rules.validation.filter(rule => {
@@ -90,22 +96,40 @@ export const validateContacts: ContactValidator = (
       )
     : initialValidContacts
 
+  const contactsAfterUniqueValidation = uniqueContactsByTimeRangeRule
+    ? applyUniqueContactsByTimeRangeValidation(
+        contactsAfterDefaultValidation,
+        rulesContext.timeRanges,
+        scoringDetails
+      )
+    : contactsAfterDefaultValidation
+
+  const appearanceCounts = countAppearances(
+    contactsAfterUniqueValidation,
+    (minimumContactsRule?.[1] as number | undefined) || 0,
+    rulesContext,
+    missingParticipants,
+    scoringDetails
+  )
+
   const validContacts =
     minimumContactsRule && Array.isArray(minimumContactsRule)
       ? minimumContactsValidator(
-          contactsAfterDefaultValidation,
+          contactsAfterUniqueValidation,
           minimumContactsRule[1] as number,
           rulesContext,
           scoringDetails,
-          missingParticipants
+          missingParticipants,
+          appearanceCounts
         )
-      : contactsAfterDefaultValidation
+      : contactsAfterUniqueValidation
 
   return {
     validContacts,
     scoringDetails,
     missingParticipants,
     blacklistedCallsignsFound,
+    appearanceCounts,
   }
 }
 
@@ -238,7 +262,7 @@ const applyInitialValidation = (
       contacts: scoringDetails[callsign]?.contacts || [],
     }
 
-    const validContactsForCallsign: ValidContact[] = []
+    validContacts.set(callsign, [])
 
     for (const contact of contacts || []) {
       const contactedCallsign = String(contact.call || '')
@@ -319,11 +343,79 @@ const applyInitialValidation = (
         scoringDetailsIndex: scoringDetails[callsign].contacts!.length - 1,
       }
 
-      validContactsForCallsign.push(validContact)
+      validContacts.get(callsign)!.push(validContact)
     }
-
-    validContacts.set(callsign, validContactsForCallsign)
   }
 
   return validContacts
+}
+
+// Count how many times each callsign appears as a contacted station
+const countAppearances = (
+  validContactsMap: Map<Callsign, ValidContact[]>,
+  minimumAppearances: number,
+  rulesContext: RulesContext,
+  missingParticipants: Set<Callsign>,
+  scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>
+) => {
+  const allowMissingParticipants =
+    !!rulesContext?.contestRules?.allowMissingParticipants
+
+  const appearanceCounts = new Map<Callsign, number>()
+
+  for (const contacts of validContactsMap.values()) {
+    const localAppearances = new Set<Callsign>()
+    for (const contact of contacts) {
+      const contactedCallsign = contact.contactedCallsign
+      if (localAppearances.has(contactedCallsign)) continue
+      const appearances = (appearanceCounts.get(contactedCallsign) || 0) + 1
+      appearanceCounts.set(contactedCallsign, appearances)
+      localAppearances.add(contactedCallsign)
+
+      if (contactedCallsign in scoringDetails) {
+        scoringDetails[contactedCallsign]!.hasMinimumAppearances =
+          appearances >= minimumAppearances
+      }
+
+      // Track missing participants - stations that were contacted but didn't submit logs
+      if (
+        allowMissingParticipants &&
+        !validContactsMap.has(contactedCallsign)
+      ) {
+        missingParticipants.add(contactedCallsign)
+      }
+    }
+  }
+  return appearanceCounts
+}
+
+const applyUniqueContactsByTimeRangeValidation = (
+  validContacts: Map<Callsign, ValidContact[]>,
+  timeRanges: Record<string, { start: Date; end: Date }> = {},
+  scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>> = {}
+): Map<Callsign, ValidContact[]> => {
+  const result = new Map<Callsign, ValidContact[]>()
+  for (const [callsign, contacts] of validContacts.entries()) {
+    result.set(callsign, [])
+    for (const contact of contacts) {
+      const isValid = uniqueContactsByTimeRangeValidator(
+        callsign,
+        contact,
+        result,
+        timeRanges
+      )
+
+      if (!isValid) {
+        const contactDetails =
+          scoringDetails[callsign]!.contacts![contact.scoringDetailsIndex]!
+        contactDetails.invalidValidationRule = 'uniqueContactsByTimeRange'
+        contactDetails.givenScore = 0
+        contactDetails.scoreRule = null
+        continue
+      }
+
+      result.get(callsign)!.push(contact)
+    }
+  }
+  return result
 }

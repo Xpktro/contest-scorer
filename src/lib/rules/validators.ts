@@ -119,12 +119,13 @@ export const contactedInContestValidator: Validator = (_, contact, context) =>
     ? context.participantCallsigns.has(contact.call)
     : false)
 
-export const uniqueContactsByTimeRangeValidator: Validator = (
-  callsign,
-  contact,
-  context
-) => {
-  const contactedCallsign = contact.call || ''
+export const uniqueContactsByTimeRangeValidator = (
+  callsign: Callsign,
+  contact: ValidContact,
+  validContacts: Map<Callsign, ValidContact[]>,
+  timeRanges: Record<string, { start: Date; end: Date }>
+): boolean => {
+  const contactedCallsign = contact.contactedCallsign || ''
   if (!contactedCallsign) return false
 
   const { date, time } = getDateTimeFromContact(contact)
@@ -132,9 +133,8 @@ export const uniqueContactsByTimeRangeValidator: Validator = (
 
   const contactDateTime = parseDateTime(date, time)
 
-  const existingContacts = context.validContacts.get(callsign) || []
+  const existingContacts = validContacts.get(callsign) || []
 
-  const timeRanges = context.timeRanges
   const currentRange = Object.entries(timeRanges).find(
     ([_, { start, end }]) => contactDateTime >= start && contactDateTime <= end
   )?.[0]
@@ -170,33 +170,11 @@ export const minimumContactsValidator = (
   minimumAppearances: number,
   rulesContext: RulesContext,
   scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>,
-  missingParticipants: Set<Callsign>
+  missingParticipants: Set<Callsign>,
+  appearanceCounts: Map<Callsign, number>
 ): Map<Callsign, ValidContact[] | null> => {
-  // Count how many times each callsign appears as a contacted station
-  const appearanceCounts = new Map<Callsign, number>()
   const allowMissingParticipants =
     !!rulesContext?.contestRules?.allowMissingParticipants
-
-  for (const contacts of validContactsMap.values()) {
-    for (const contact of contacts) {
-      const contactedCallsign = contact.contactedCallsign
-      const appearances = (appearanceCounts.get(contactedCallsign) || 0) + 1
-      appearanceCounts.set(contactedCallsign, appearances)
-
-      if (contactedCallsign in scoringDetails) {
-        scoringDetails[contactedCallsign]!.hasMinimumAppearances =
-          appearances >= minimumAppearances
-      }
-
-      // Track missing participants - stations that were contacted but didn't submit logs
-      if (
-        allowMissingParticipants &&
-        !validContactsMap.has(contactedCallsign)
-      ) {
-        missingParticipants.add(contactedCallsign)
-      }
-    }
-  }
 
   const missingParticipantsResult: [Callsign, ValidContact[] | null][] = []
   if (allowMissingParticipants) {
@@ -241,6 +219,5 @@ export const validators = {
   bands: bandsValidator,
   mode: modeValidator,
   contactedInContest: contactedInContestValidator,
-  uniqueContactsByTimeRange: uniqueContactsByTimeRangeValidator,
   exchange: exchangeValidator,
 } as Record<ValidationRule, Validator>
