@@ -10,6 +10,11 @@ import { applyBonusRules } from 'lib/bonus'
 import { applyTiebreakers } from 'lib/tiebreaker'
 import { getRulesContext } from './precalculate'
 
+const formatCounts = (callsigns: Set<string>, counts: Map<string, number>) =>
+  Array.from(callsigns)
+    .map<[string, number]>(callsign => [callsign, counts.get(callsign) || 0])
+    .sort((a, b) => a[0].localeCompare(b[0]))
+
 export const scoreContest = (
   submissions: Participant[],
   rules: ContestRules
@@ -22,6 +27,7 @@ export const scoreContest = (
     missingParticipants,
     blacklistedCallsignsFound,
     appearanceCounts,
+    blacklistedAppearanceCounts,
   } = validateContacts(submissions, rulesContext)
 
   const scoredContacts = scoreContacts(
@@ -51,8 +57,11 @@ export const scoreContest = (
   return {
     results: tiebreakerResults,
     scoringDetails,
-    missingParticipants: Array.from(missingParticipants),
-    blacklistedCallsignsFound: Array.from(blacklistedCallsignsFound),
+    missingParticipants: formatCounts(missingParticipants, appearanceCounts),
+    blacklistedCallsignsFound: formatCounts(
+      blacklistedCallsignsFound,
+      blacklistedAppearanceCounts
+    ),
   } as ContestResult
 }
 
