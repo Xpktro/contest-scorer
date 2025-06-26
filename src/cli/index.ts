@@ -236,11 +236,11 @@ program
         )
         if (scoredContest.missingParticipants.length > 0) {
           const missingTable = new AsciiTable3()
-            .setHeading('Callsign')
+            .setHeading('Callsign', 'Appearances')
             .setStyle('unicode-single')
 
-          scoredContest.missingParticipants.forEach(callsign => {
-            missingTable.addRow(callsign)
+          scoredContest.missingParticipants.forEach(([callsign, count]) => {
+            missingTable.addRow(callsign, count)
           })
 
           console.log(missingTable.toString())
@@ -257,12 +257,14 @@ program
               colors.reset
           )
           const blacklistTable = new AsciiTable3()
-            .setHeading('Callsign')
+            .setHeading('Callsign', 'Appearances')
             .setStyle('unicode-single')
 
-          scoredContest.blacklistedCallsignsFound.forEach(callsign => {
-            blacklistTable.addRow(callsign)
-          })
+          scoredContest.blacklistedCallsignsFound.forEach(
+            ([callsign, count]) => {
+              blacklistTable.addRow(callsign, count)
+            }
+          )
 
           console.log(blacklistTable.toString())
         }
