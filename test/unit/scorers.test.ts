@@ -284,11 +284,18 @@ describe('Scorers', () => {
       },
     }
 
+    const appearanceCounts = new Map<string, number>([
+      ['OA4P', 1], // appears in OA4T's log
+      ['OA4O', 1], // appears in OA4T's log
+      ['OA4EFJ', 1], // appears in OA4T's log
+    ])
+
     // Score the contacts
     const scoredContacts = scoreContacts(
       testContacts,
       rulesContext,
-      scoringDetails
+      scoringDetails,
+      appearanceCounts
     )
 
     // Create a ContestResult
@@ -352,11 +359,16 @@ describe('Scorers', () => {
       },
     }
 
+    const appearanceCounts = new Map<string, number>([
+      ['OA4O', 1], // appears in OA4T's log
+    ])
+
     // Score the contacts
     const scoredContacts = scoreContacts(
       testContacts,
       rulesContext,
-      scoringDetails
+      scoringDetails,
+      appearanceCounts
     )
 
     // Create a ContestResult for testing
@@ -406,11 +418,18 @@ describe('Scorers', () => {
       },
     }
 
+    const appearanceCounts = new Map<string, number>([
+      ['OA4P', 1], // appears in OA4T's log
+      ['OA4EFJ', 1], // appears in OA4T's log
+      ['OA4T', 1], // appears in OA4P's log
+    ])
+
     // Score the contacts
     const scoredContacts = scoreContacts(
       validContacts,
       rulesContext,
-      scoringDetails
+      scoringDetails,
+      appearanceCounts
     )
 
     // Create a ContestResult for testing
@@ -491,7 +510,8 @@ describe('Scorers', () => {
     const scoredContacts = scoreContacts(
       testContacts,
       rulesContext,
-      scoringDetails
+      scoringDetails,
+      new Map()
     )
 
     // The result should be like a ContestResult
