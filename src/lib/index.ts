@@ -21,12 +21,14 @@ export const scoreContest = (
     scoringDetails,
     missingParticipants,
     blacklistedCallsignsFound,
+    appearanceCounts,
   } = validateContacts(submissions, rulesContext)
 
   const scoredContacts = scoreContacts(
     validContacts,
     rulesContext,
-    scoringDetails
+    scoringDetails,
+    appearanceCounts
   )
 
   const results = applyBonusRules(

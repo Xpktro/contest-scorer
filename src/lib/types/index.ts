@@ -148,6 +148,7 @@ export type ContactValidatorResult = {
   scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>
   missingParticipants: Set<Callsign>
   blacklistedCallsignsFound: Set<Callsign>
+  appearanceCounts: Map<Callsign, number>
 }
 
 export type ContactValidator = (
