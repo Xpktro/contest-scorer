@@ -1,10 +1,15 @@
-import type { Contact, ScoringRuleConfig, ValidationRuleConfig } from 'types'
+import type {
+  Contact,
+  ScoringRuleConfig,
+  ValidationRuleConfig,
+  ValidContact,
+} from 'types'
 
 export const getDateTimeFromContact = (
-  contact: Contact
+  contact: Contact | ValidContact
 ): { date: string; time: string } => ({
-  date: contact.qso_date || '',
-  time: contact.time_on || '',
+  date: (contact as Contact).qso_date || contact.date || '',
+  time: (contact as Contact).time_on || contact.time || '',
 })
 
 export const parseDateTime = (date: string, time: string): Date => {
