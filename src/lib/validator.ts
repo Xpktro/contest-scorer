@@ -35,6 +35,7 @@ export const validateContacts: ContactValidator = (
 
   const blacklistedCallsigns = new Set(contestRules.blacklist || [])
   const blacklistedCallsignsFound = new Set<Callsign>()
+  const blacklistedAppearanceCounts = new Map<Callsign, number>()
   const scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>> = {}
   const missingParticipants = new Set<Callsign>()
 
@@ -73,6 +74,7 @@ export const validateContacts: ContactValidator = (
     participantCallsigns,
     blacklistedCallsigns,
     blacklistedCallsignsFound,
+    blacklistedAppearanceCounts,
     scoringDetails
   )
 
@@ -130,6 +132,7 @@ export const validateContacts: ContactValidator = (
     missingParticipants,
     blacklistedCallsignsFound,
     appearanceCounts,
+    blacklistedAppearanceCounts,
   }
 }
 
@@ -235,6 +238,7 @@ const applyInitialValidation = (
   participantCallsigns: Set<Callsign>,
   blacklistedCallsigns: Set<Callsign>,
   blacklistedCallsignsFound: Set<Callsign>,
+  blacklistedAppearanceCounts: Map<Callsign, number>,
   scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>
 ): Map<Callsign, ValidContact[]> => {
   const validContacts = new Map<Callsign, ValidContact[]>()
@@ -254,6 +258,10 @@ const applyInitialValidation = (
   for (const [callsign, contacts] of submissions) {
     if (blacklistedCallsigns.has(callsign)) {
       blacklistedCallsignsFound?.add(callsign)
+      blacklistedAppearanceCounts.set(
+        callsign,
+        (blacklistedAppearanceCounts.get(callsign) || 0) + 1
+      )
       continue
     }
 
@@ -264,6 +272,8 @@ const applyInitialValidation = (
 
     validContacts.set(callsign, [])
 
+    const localBlacklistedAppearances = new Set<Callsign>()
+
     for (const contact of contacts || []) {
       const contactedCallsign = String(contact.call || '')
       const currentContactDetails = {
@@ -273,6 +283,13 @@ const applyInitialValidation = (
 
       if (blacklistedCallsigns.has(contactedCallsign)) {
         blacklistedCallsignsFound?.add(contactedCallsign)
+        if (!localBlacklistedAppearances.has(contactedCallsign)) {
+          blacklistedAppearanceCounts.set(
+            contactedCallsign,
+            (blacklistedAppearanceCounts.get(contactedCallsign) || 0) + 1
+          )
+          localBlacklistedAppearances.add(contactedCallsign)
+        }
         continue
       }
 
