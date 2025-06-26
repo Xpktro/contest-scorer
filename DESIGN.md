@@ -22,7 +22,7 @@ Scoring works as follows:
 If present in the configuration file, the following rules will be applied, which will validate/filter the each participant/submission:
 
 - Special rules (after the initial validation):
-  - 'minimumContacts': Contacts can only be valid if the participant has appeared in the contest at least a given number of times. Params: 5
+  - 'minimumContacts': **Validation-level rule** that removes participants who don't appear in enough logs across the contest. A participant must be contacted by at least this many different stations to be eligible for scoring. Each participant log counts as one appearance regardless of how many times they appear in that log. This rule also enables "missing participants" - stations that don't submit logs but can still award points if they appear in enough logs. Params: 5
   - 'blacklist': (Defined one level over the rule set). Exclude specific callsigns from receiving or awarding points and from appearing in the final ranking. Params: ['callsign1', 'callsign2']
   - 'allowMissingParticipants': (Defined one level over the rule set). Controls whether contacts with stations that did not submit a log should be validated and scored. When true, contacts with missing participants are accepted and scored. When false (or not specified), contacts with missing participants are rejected. Params: true/false
 
@@ -33,7 +33,7 @@ If present in the configuration file, the following rules will be applied, which
   - 'default': The contact will be scored with a default value. Params: 1
   - 'timeRange': The contact will be scored with a value based on the time range defined in the validations rule. Params: {'firstHalf': 2, 'secondHalf': 3}
   - 'bonusStations': Contacts with a given callsign will be scored with a bonus. Params: {'OA4O': 5}
-  - 'minimumContacts': Participants must have at least the specified number of valid contacts to receive any score. Participants with fewer contacts will still appear in results but with zero points. Params: 2
+  - 'minimumContacts': **Contact-level rule** that prevents contacts from awarding points if the contacted station doesn't appear in enough logs. A contacted station must appear in at least this many different submitted logs to award points to others. Each participant log counts as one appearance regardless of how many times the station appears in that log. Params: 2
 
 3. Every scored contact from a given callsign will be summed to get the total score for that callsign.
 

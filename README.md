@@ -140,7 +140,7 @@ Contest rules are defined in a JSON file with the following structure:
 - `contactedInContest`: Validates if the contacted callsign is a participant in the contest.
 - `uniqueContactsByTimeRange`: Validates one contacted callsign per time range. Format: `{"firstHalf": ["start", "end"], "secondHalf": ["start", "end"]}`
 - `exchange`: Validates if the contact has a valid exchange using a regex.
-- `minimumContacts`: Validates if the participant has appeared in the contest at least a given number of times. This rule also enables "missing participants" - stations that don't submit logs but can still award points if they appear in enough logs. Format: `5`
+- `minimumContacts`: **Validation-level rule** that removes participants who don't appear in enough logs across the contest. A participant must be contacted by at least this many different stations to be eligible for scoring. Each participant log counts as one appearance regardless of how many times they appear in that log. This rule also enables "missing participants" - stations that don't submit logs but can still award points if they appear in enough logs. Format: `5`
 
 #### Top-level Validation Rules
 
@@ -152,7 +152,7 @@ Contest rules are defined in a JSON file with the following structure:
 - `default`: Assigns a default score to each contact. Default is 1.
 - `timeRange`: Assigns different scores based on time ranges. Format: `{"firstHalf": 2, "secondHalf": 3}`
 - `bonusStations`: Assigns bonus scores for contacting certain stations. Format: `{"OA4O": 5, "OA4EFJ": 3}`
-- `minimumContacts`: Requires participants to have at least the specified number of valid contacts to receive any score. Participants with fewer contacts will still appear in results but with zero points. Format: `2`
+- `minimumContacts`: **Contact-level rule** that prevents contacts from awarding points if the contacted station doesn't appear in enough logs. A contacted station must appear in at least this many different submitted logs to award points to others. Each participant log counts as one appearance regardless of how many times the station appears in that log. Format: `2`
 
 ### Bonus Rules
 
@@ -163,6 +163,21 @@ Contest rules are defined in a JSON file with the following structure:
 - `default`: Sorts contestants by score.
 - `validStations`: Breaks ties by the number of valid stations contacted (more is better).
 - `minimumTime`: Breaks ties by the time span between first and last contact (less is better).
+
+### Caveat: minimumContacts rules
+
+The contest scorer supports two separate `minimumContacts` rules that work at different levels:
+
+1. **Validation minimumContacts**: Applied during validation to remove entire participants who don't appear in enough logs
+2. **Scoring minimumContacts**: Applied during scoring to prevent individual contacts from awarding points if the contacted station doesn't appear in enough logs
+
+#### Appearance Counting Logic
+
+Both rules use the same appearance counting logic:
+
+- A station gets **one appearance** per submitted log, regardless of how many times it appears in that log
+- For example, if OA4T contacts OA4P five times in their log, OA4P still only gets 1 appearance from OA4T's log
+- Appearances are counted across all submitted logs to determine total appearances
 
 ### Output Format
 
@@ -196,7 +211,7 @@ interface ContestResult {
 }
 ```
 
-The `missingParticipants` array will contain all stations that were contacted but didn't submit logs, as long as `allowMissingParticipants` is set to `true`. These stations won't appear in the `results` array but they will award points if they meet the minimum appearance treshold with `minimumContacts` if defined.
+The `missingParticipants` array will contain all stations that were contacted but didn't submit logs, as long as `allowMissingParticipants` is set to `true`. These stations won't appear in the `results` array but they can award points if they meet the minimum appearance threshold defined by any `minimumContacts` rules.
 
 The CSV output contains only the callsign and total score, while the JSON output contains the full detailed result object.
 
@@ -206,7 +221,16 @@ The CSV output contains only the callsign and total score, while the JSON output
 
 - Missing participants (stations that were contacted but didn't submit logs) are always tracked in the output, regardless of whether `allowMissingParticipants` is true or false.
 - When `allowMissingParticipants` is false, contacts with missing participants are still tracked but don't award points.
-- If you're using the `minimumContacts` rule, missing participants must appear in at least that many logs to be eligible for awarding points to others.
+- With the dual `minimumContacts` architecture:
+  - **Validation minimumContacts**: Missing participants must appear in at least this many logs to be eligible for validation
+  - **Scoring minimumContacts**: Missing participants must appear in at least this many logs to award points to others
+
+### Appearance Counting vs Contact Counting
+
+The new architecture distinguishes between:
+
+- **Appearances**: How many different logs a station appears in (used by `minimumContacts` rules)
+- **Contacts**: How many individual QSOs a station has in their own log (used by legacy behavior)
 
 ### Score Calculation
 
