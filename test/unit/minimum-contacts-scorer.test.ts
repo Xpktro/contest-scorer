@@ -98,8 +98,20 @@ describe('minimumContacts scoring rule', () => {
       [callsign2]: { contacts: [{}] as ContactScoringDetail[] },
     }
 
+    const appearanceCounts = new Map<Callsign, number>([
+      ['OA4P', 2], // appears in OA4T's log and another participant's log
+      ['OA4Q', 2], // appears in OA4T's log and another participant's log
+      ['OA4R', 1], // appears in OA4T's log only - won't award points due to minimum requirement
+      ['OA4T', 2], // appears in OA4P's log and another participant's log
+    ])
+
     // Execute
-    const scored = scoreContacts(validContacts, rulesContext, scoringDetails)
+    const scored = scoreContacts(
+      validContacts,
+      rulesContext,
+      scoringDetails,
+      appearanceCounts
+    )
 
     // Create a ContestResult
     const result: ContestResult = {
@@ -113,15 +125,15 @@ describe('minimumContacts scoring rule', () => {
     }
 
     // Verify
-    expect(scored.get(callsign1)?.length).toBe(3) // Meets minimum, contacts are scored
+    expect(scored.get(callsign1)?.length).toBe(3) // All contacts present, but only 2 will be scored (OA4P, OA4Q - not OA4R)
     expect(scored.get(callsign2)?.length).toBe(0) // Doesn't meet minimum, empty array returned
 
     // The participant still exists in the results but with zero score
     expect(scored.has(callsign2)).toBe(true)
     expect(getScoreForCallsign(result, callsign2)).toBe(0)
 
-    // Participant with enough contacts gets proper score
-    expect(getScoreForCallsign(result, callsign1)).toBeGreaterThan(0)
+    // Participant with enough contacts gets score for contacts with stations that meet appearance threshold
+    expect(getScoreForCallsign(result, callsign1)).toBe(2) // Only OA4P and OA4Q contacts award points
   })
 
   test('when no minimumContacts rule is specified, all participants are scored', () => {
@@ -182,8 +194,19 @@ describe('minimumContacts scoring rule', () => {
       [callsign2]: { contacts: [{}] as ContactScoringDetail[] },
     }
 
+    const appearanceCounts = new Map<Callsign, number>([
+      ['OA4P', 1], // appears in OA4T's log
+      ['OA4Q', 1], // appears in OA4T's log
+      ['OA4T', 1], // appears in OA4P's log
+    ])
+
     // Execute
-    const scored = scoreContacts(validContacts, rulesContext, scoringDetails)
+    const scored = scoreContacts(
+      validContacts,
+      rulesContext,
+      scoringDetails,
+      appearanceCounts
+    )
 
     // Create a ContestResult
     const result: ContestResult = {
@@ -253,11 +276,17 @@ describe('minimumContacts scoring rule', () => {
       [callsign2]: {}, // No contacts for missing participant
     }
 
+    const appearanceCounts = new Map<Callsign, number>([
+      ['OA4P', 1], // appears in OA4T's log (missing participant)
+      ['OA4Q', 1], // appears in OA4T's log
+    ])
+
     // Execute
     const scored = scoreContacts(
       validContacts as ValidContacts,
       rulesContext,
-      scoringDetails
+      scoringDetails,
+      appearanceCounts
     )
 
     // Create a ContestResult
