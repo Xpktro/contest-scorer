@@ -12,6 +12,7 @@ import type {
 import {
   defaultValidator,
   minimumContactsValidator,
+  uniqueContactsByTimeRangeValidator,
   validators,
 } from 'lib/rules/validators'
 import { validateContacts } from 'lib/validator'
@@ -421,49 +422,61 @@ describe('Validators', () => {
       }
 
       // Contact with same station in the first time range (should be invalid - duplicate)
-      const duplicateFirstDayContact = createContact({
-        qso_date: '20241215',
-      })
+      const duplicateFirstDayContact = createValidContact(
+        createContact({
+          qso_date: '20241215',
+        })
+      )
 
       // Contact with same station but in the second time range (should be valid - different time range)
-      const uniqueSecondDayContact = createContact({
-        qso_date: '20241220',
-      })
+      const uniqueSecondDayContact = createValidContact(
+        createContact({
+          qso_date: '20241220',
+        })
+      )
 
       // Contact with different station in the first time range (should be valid - different station)
-      const differentStationContact = createContact({
-        call: 'OA4EFJ',
-        qso_date: '20241215',
-      })
+      const differentStationContact = createValidContact(
+        createContact({
+          call: 'OA4EFJ',
+          qso_date: '20241215',
+        })
+      )
 
       const params = {
-        firstDay: ['2024-12-01T00:00:00Z', '2024-12-15T23:59:59Z'],
-        secondDay: ['2024-12-16T00:00:00Z', '2024-12-31T23:59:59Z'],
+        firstDay: {
+          start: new Date('2024-12-01T00:00:00Z'),
+          end: new Date('2024-12-15T23:59:59Z'),
+        },
+        secondDay: {
+          start: new Date('2024-12-16T00:00:00Z'),
+          end: new Date('2024-12-31T23:59:59Z'),
+        },
       }
 
       expect(
-        validators.uniqueContactsByTimeRange(
+        uniqueContactsByTimeRangeValidator(
           'OA4T',
           duplicateFirstDayContact,
-          contextWithContacts,
+          existingContacts,
           params
         )
       ).toBe(false)
 
       expect(
-        validators.uniqueContactsByTimeRange(
+        uniqueContactsByTimeRangeValidator(
           'OA4T',
           uniqueSecondDayContact,
-          contextWithContacts,
+          existingContacts,
           params
         )
       ).toBe(true)
 
       expect(
-        validators.uniqueContactsByTimeRange(
+        uniqueContactsByTimeRangeValidator(
           'OA4T',
           differentStationContact,
-          contextWithContacts,
+          existingContacts,
           params
         )
       ).toBe(true)
