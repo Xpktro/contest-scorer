@@ -160,8 +160,18 @@ describe('Missing Participants E2E', () => {
 
     // Check missing participants are tracked
     const missingParticipants = getMissingParticipants(results)
-    expect(missingParticipants).toContain('OA4X')
-    expect(missingParticipants).toContain('OA4Y')
+    expect(missingParticipants.map(([callsign]) => callsign)).toContain('OA4X')
+    expect(missingParticipants.map(([callsign]) => callsign)).toContain('OA4Y')
+
+    // Check appearance counts for missing participants
+    const oa4xEntry = missingParticipants.find(
+      ([callsign]) => callsign === 'OA4X'
+    )
+    const oa4yEntry = missingParticipants.find(
+      ([callsign]) => callsign === 'OA4Y'
+    )
+    expect(oa4xEntry).toEqual(['OA4X', 1])
+    expect(oa4yEntry).toEqual(['OA4Y', 1])
 
     // OA4P should have 2 valid contacts
     // - Day 1: OA4T (1pt)

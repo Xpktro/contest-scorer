@@ -425,7 +425,11 @@ describe('Contest Scoring E2E', () => {
 
     // Get blacklisted callsigns that were found
     const blacklistedFound = getBlacklistedParticipants(contestResults)
-    expect(blacklistedFound).toContain('OA4Z')
+    expect(blacklistedFound.map(([callsign]) => callsign)).toContain('OA4Z')
+
+    // Check appearance count for blacklisted participant
+    const oa4zEntry = blacklistedFound.find(([callsign]) => callsign === 'OA4Z')
+    expect(oa4zEntry).toEqual(['OA4Z', 3])
 
     // Get results list
     const results = getResults(contestResults)
@@ -626,7 +630,13 @@ describe('Contest Scoring E2E', () => {
     // OA4X should not be included as a "missing participant" although it appears in multiple logs
     const includedCallsigns = results.map(r => r[0])
     expect(includedCallsigns).not.toContain('OA4X')
-    expect(missingParticipants).toContain('OA4X')
+    expect(missingParticipants.map(([callsign]) => callsign)).toContain('OA4X')
+
+    // Check appearance count for missing participant
+    const oa4xEntry = missingParticipants.find(
+      ([callsign]) => callsign === 'OA4X'
+    )
+    expect(oa4xEntry).toEqual(['OA4X', 2])
 
     // OA4T and OA4P should be included and have appropriate scores
     expect(includedCallsigns).toContain('OA4T')
