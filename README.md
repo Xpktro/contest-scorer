@@ -203,15 +203,19 @@ interface ContestResult {
     }
   }
 
-  // Array of callsigns that didn't submit logs but appeared in other logs
-  missingParticipants: string[]
+  // Array of [callsign, appearanceCount] tuples for stations that didn't submit logs but appeared in other logs
+  missingParticipants: [string, number][]
 
-  // Array of blacklisted callsigns that were found in contacts
-  blacklistedCallsignsFound: string[]
+  // Array of [callsign, appearanceCount] tuples for blacklisted callsigns that were found in contacts
+  blacklistedCallsignsFound: [string, number][]
 }
 ```
 
-The `missingParticipants` array will contain all stations that were contacted but didn't submit logs, as long as `allowMissingParticipants` is set to `true`. These stations won't appear in the `results` array but they can award points if they meet the minimum appearance threshold defined by any `minimumContacts` rules.
+The `missingParticipants` array will contain all stations that were contacted but didn't submit logs, as long as `allowMissingParticipants` is set to `true`. Each entry is a tuple containing the callsign and the number of logs in which that station appeared. These stations won't appear in the `results` array but they can award points if they meet the minimum appearance threshold defined by any `minimumContacts` rules.
+
+The `blacklistedCallsignsFound` array contains tuples of blacklisted callsigns that were found in submitted logs along with their appearance counts.
+
+Both arrays are sorted alphabetically by callsign.
 
 The CSV output contains only the callsign and total score, while the JSON output contains the full detailed result object.
 

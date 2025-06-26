@@ -94,11 +94,11 @@ interface ContestResult {
     }
   }
 
-  // Array of callsigns that didn't submit logs but appeared in other logs
-  missingParticipants: string[]
+  // Array of [callsign, appearanceCount] tuples for stations that didn't submit logs but appeared in other logs
+  missingParticipants: [string, number][]
 
-  // Array of blacklisted callsigns that were found in contacts
-  blacklistedCallsignsFound: string[]
+  // Array of [callsign, appearanceCount] tuples for blacklisted callsigns that were found in contacts
+  blacklistedCallsignsFound: [string, number][]
 }
 ```
 
@@ -116,9 +116,9 @@ Regarding this output structure, here's some details about its fields.
     - **scoreRule**: The name of the rule used to calculate the score for this contact.
     - **givenScore**: The final score awarded for this contact.
 
-- **missingParticipants**: Contains callsigns of stations that were contacted by participants but didn't submit their own logs. If `allowMissingParticipants` is true and they meet the minimum appearance threshold, they'll award points for contacts made with them, but they won't appear in the rankings themselves.
+- **missingParticipants**: Contains tuples of [callsign, appearanceCount] for stations that were contacted by participants but didn't submit their own logs. The appearance count shows how many different logs each station appeared in. If `allowMissingParticipants` is true and they meet the minimum appearance threshold, they'll award points for contacts made with them, but they won't appear in the rankings themselves. The array is sorted alphabetically by callsign.
 
-- **blacklistedCallsignsFound**: Contains callsigns from the blacklist that were found in contacts. These stations don't receive or award points.
+- **blacklistedCallsignsFound**: Contains tuples of [callsign, appearanceCount] for blacklisted callsigns that were found in submitted logs. The appearance count shows how many different logs each blacklisted station appeared in. These stations don't receive or award points. The array is sorted alphabetically by callsign.
 
 The CLI will receive a folder path as an input and will output a CSV file with the results (callsign and score) sorted by score. Additionaly, a json file will be generated with the complete scoring and validation details of the contest.
 
