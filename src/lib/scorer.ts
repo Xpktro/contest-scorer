@@ -12,7 +12,8 @@ import { extractRule } from 'utils'
 export const scoreContacts = (
   validContacts: ValidContacts,
   rulesContext: RulesContext,
-  scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>
+  scoringDetails: Record<Callsign, Partial<ParticipantScoringDetail>>,
+  appearanceCounts: Map<Callsign, number>
 ): Map<Callsign, ValidContact[]> => {
   const minimumContactsRule = extractRule(
     rulesContext.contestRules.rules.scoring,
@@ -40,39 +41,52 @@ export const scoreContacts = (
     Array.from(validContacts.entries()).reduce(
       (result, [callsign, contacts]) => {
         // Missing participants are ignored
-        if (!contacts) return result
+        if (contacts === null) return result
 
         // If a minimum contacts rule is defined,
         // only participants with enough contacts are scored
-        if (minimumContactsRule && contacts.length < minimumContacts)
+        if (
+          minimumContactsRule &&
+          (scoringDetails[callsign]?.contacts?.length || 0) < minimumContacts
+        )
           return result.concat([[callsign, []]])
 
         return result.concat([
           [
             callsign,
-            contacts.map(contact =>
+            contacts.map(contact => {
+              const contactScoringDetails =
+                scoringDetails[callsign]!.contacts![
+                  contact.scoringDetailsIndex
+                ]!
+
+              // If the contact does not have enough appearances, do not score it
+              if (
+                minimumContactsRule &&
+                (appearanceCounts.get(contact.contactedCallsign) || 0) <
+                  minimumContacts
+              ) {
+                contactScoringDetails.scoreRule = 'minimumContacts'
+                contactScoringDetails.givenScore = 0
+                return { ...contact, score: 0 }
+              }
+
               // Create a new contact object for each scoring rule, passing the updated score forward
-              otherScoringRules.reduce(
+              return otherScoringRules.reduce(
                 (scoredContact, rule) => {
                   const [ruleName, params] = Array.isArray(rule)
                     ? rule
                     : [rule, undefined]
 
-                  // Apply the rule and return a new contact object with the updated score
-                  const score = scorers[ruleName](
+                  const score = scorers[ruleName as keyof typeof scorers](
                     scoredContact,
                     context,
                     params
                   )
 
                   if (scoredContact.score !== score) {
-                    scoringDetails[callsign]!.contacts![
-                      scoredContact.scoringDetailsIndex
-                    ]!.scoreRule = ruleName
-
-                    scoringDetails[callsign]!.contacts![
-                      scoredContact.scoringDetailsIndex
-                    ]!.givenScore = score
+                    contactScoringDetails.scoreRule = ruleName
+                    contactScoringDetails.givenScore = score
                   }
 
                   return {
@@ -82,7 +96,7 @@ export const scoreContacts = (
                 },
                 { ...contact, score: 0 }
               )
-            ),
+            }),
           ],
         ])
       },
