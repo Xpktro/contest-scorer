@@ -1,6 +1,12 @@
 #!/usr/bin/env bun
 import { join, basename } from 'path'
-import { readdirSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import {
+  readdirSync,
+  writeFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+} from 'fs'
 import { readFile } from 'node:fs/promises'
 import { AdifParser } from 'adif-parser-ts'
 import type { ContestRules, Participant } from 'lib/types'
@@ -21,12 +27,22 @@ const colors = {
   bold: '\x1b[1m',
 }
 
+const getVersion = (): string => {
+  try {
+    const packageJsonPath = join(import.meta.dir, '..', '..', 'package.json')
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
+    return packageJson.version || 'unstable'
+  } catch (error) {
+    return 'unstable'
+  }
+}
+
 const program = new Command()
 
 program
   .name('contest-scorer')
   .description('Score ham radio contests from ADIF files')
-  .version('0.2.0')
+  .version(getVersion())
 
 program
   .command('score')
