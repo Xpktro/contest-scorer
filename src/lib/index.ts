@@ -44,7 +44,29 @@ export const scoreContest = (
     scoringDetails
   )
 
-  const sortedResults = results.sort(
+  const nonCompetingCallsigns = new Set(rules.nonCompeting || [])
+  const { competingResults, nonCompetingResults } = results.reduce(
+    ({ competingResults, nonCompetingResults }, result) =>
+      nonCompetingCallsigns.has(result[0])
+        ? {
+            competingResults,
+            nonCompetingResults: nonCompetingResults.concat([result]),
+          }
+        : {
+            competingResults: competingResults.concat([result]),
+            nonCompetingResults,
+          },
+    {
+      competingResults: [] as ScoringResult[],
+      nonCompetingResults: [] as ScoringResult[],
+    }
+  )
+
+  const sortedResults = competingResults.sort(
+    (a: ScoringResult, b: ScoringResult) => b[1] - a[1]
+  )
+
+  const sortedNonCompetingResults = nonCompetingResults.sort(
     (a: ScoringResult, b: ScoringResult) => b[1] - a[1]
   )
 
@@ -56,6 +78,7 @@ export const scoreContest = (
 
   return {
     results: tiebreakerResults,
+    nonCompetingResults: sortedNonCompetingResults,
     scoringDetails,
     missingParticipants: formatCounts(missingParticipants, appearanceCounts),
     blacklistedCallsignsFound: formatCounts(

@@ -25,6 +25,7 @@ If present in the configuration file, the following rules will be applied, which
   - 'minimumContacts': **Validation-level rule** that removes participants who don't appear in enough logs across the contest. A participant must be contacted by at least this many different stations to be eligible for scoring. Each participant log counts as one appearance regardless of how many times they appear in that log. This rule also enables "missing participants" - stations that don't submit logs but can still award points if they appear in enough logs. Params: 5
   - 'blacklist': (Defined one level over the rule set). Exclude specific callsigns from receiving or awarding points and from appearing in the final ranking. Params: ['callsign1', 'callsign2']
   - 'allowMissingParticipants': (Defined one level over the rule set). Controls whether contacts with stations that did not submit a log should be validated and scored. When true, contacts with missing participants are accepted and scored. When false (or not specified), contacts with missing participants are rejected. Params: true/false
+  - 'nonCompeting': (Defined one level over the rule set). Specifies callsigns that will be treated as regular participants (can make/receive contacts and award points) but are excluded from the main contest rankings. These participants are scored using the same rules as regular participants but are reported separately. Params: ['callsign1', 'callsign2']
 
 2. Each valid contact should be scored based on the rules.
 
@@ -57,6 +58,7 @@ All of the rules for validation must be indicated in the rules file. The rules f
   "start": "2025-01-01T00:00:00Z",
   "end": "2025-01-01T00:59:59Z",
   "allowMissingParticipants": true,
+  "nonCompeting": ["callsign1", "callsign2"],
   "rules": {
     "validation": [
       "rule1",
@@ -76,8 +78,11 @@ The scoring engine returns a detailed `ContestResult` object with the following 
 
 ```typescript
 interface ContestResult {
-  // Array of [callsign, score] tuples sorted by score
+  // Array of [callsign, score] tuples sorted by score (competing participants only)
   results: [string, number][]
+
+  // Array of [callsign, score] tuples sorted by score (non-competing participants only)
+  nonCompetingResults: [string, number][]
 
   // Detailed scoring information for each participant
   scoringDetails: {
@@ -104,7 +109,9 @@ interface ContestResult {
 
 Regarding this output structure, here's some details about its fields.
 
-- **results**: The final contest standings as an array of [callsign, score] tuples, sorted by score with tiebreakers applied.
+- **results**: The final contest standings as an array of [callsign, score] tuples for competing participants only, sorted by score with tiebreakers applied.
+
+- **nonCompetingResults**: An array of [callsign, score] tuples for non-competing participants, sorted by score with tiebreakers applied. These participants are scored using the same rules as regular participants but are excluded from the main contest rankings.
 
 - **scoringDetails**: Contains detailed information about how each participant was scored:
 

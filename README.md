@@ -101,6 +101,7 @@ const results = scoreContest(submissions, rules)
 
 // Access results
 console.log('Final standings:', results.results)
+console.log('Non-competing participants:', results.nonCompetingResults)
 console.log('Detailed scoring:', results.scoringDetails)
 console.log('Missing participants:', results.missingParticipants)
 console.log(results)
@@ -117,6 +118,7 @@ Contest rules are defined in a JSON file with the following structure:
   "end": "2025-01-01T00:59:59Z",
   "blacklist": ["callsign1", "callsign2"],
   "allowMissingParticipants": true,
+  "nonCompeting": ["callsign3", "callsign4"],
   "rules": {
     "validation": [
       "rule1",
@@ -146,6 +148,7 @@ Contest rules are defined in a JSON file with the following structure:
 
 - `blacklist`: Excludes specific callsigns from receiving or awarding points and from appearing in the final rankings. Format: `["callsign1", "callsign2"]`
 - `allowMissingParticipants`: Controls whether contacts with stations that did not submit a log should be validated and their contacts scored. When true, contacts with missing participants are accepted and scored. When false or not defined, contacts with missing participants are rejected. Format: `true/false`
+- `nonCompeting`: Specifies callsigns that will be treated as regular participants (can make/receive contacts and award points) but are excluded from the main contest rankings. These participants are scored and reported separately in the `nonCompetingResults` section. Format: `["callsign1", "callsign2"]`
 
 ### Scoring Rules
 
@@ -185,8 +188,11 @@ The scoring engine returns a structured `ContestResult` object with detailed inf
 
 ```typescript
 interface ContestResult {
-  // Array of [callsign, score] tuples sorted by score
+  // Array of [callsign, score] tuples sorted by score (competing participants only)
   results: [string, number][]
+
+  // Array of [callsign, score] tuples sorted by score (non-competing participants only)
+  nonCompetingResults: [string, number][]
 
   // Detailed scoring information for each participant
   scoringDetails: {
@@ -210,6 +216,8 @@ interface ContestResult {
   blacklistedCallsignsFound: [string, number][]
 }
 ```
+
+The `nonCompetingResults` array contains participants specified in the `nonCompeting` rule. These participants are scored using the same rules as regular participants but are excluded from the main contest rankings. They are sorted by score in descending order, just like the main results.
 
 The `missingParticipants` array will contain all stations that were contacted but didn't submit logs, as long as `allowMissingParticipants` is set to `true`. Each entry is a tuple containing the callsign and the number of logs in which that station appeared. These stations won't appear in the `results` array but they can award points if they meet the minimum appearance threshold defined by any `minimumContacts` rules.
 

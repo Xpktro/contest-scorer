@@ -64,6 +64,7 @@ export interface ContestRules {
   end: string
   blacklist?: Callsign[]
   allowMissingParticipants?: boolean
+  nonCompeting?: Callsign[]
   rules: {
     validation: ValidationRuleConfig[]
     scoring: ScoringRuleConfig[]
@@ -138,6 +139,7 @@ export interface ParticipantScoringDetail {
 
 export interface ContestResult {
   results: ScoringResult[]
+  nonCompetingResults: ScoringResult[]
   scoringDetails: Record<Callsign, ParticipantScoringDetail>
   missingParticipants: [Callsign, number][]
   blacklistedCallsignsFound: [Callsign, number][]
